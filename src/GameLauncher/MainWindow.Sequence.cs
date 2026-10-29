@@ -26,6 +26,12 @@ public partial class MainWindow
     private string _sequenceSavedText = string.Empty;
     private bool _sequencePickerBusy;
 
+    /// <summary>The editor text before the latest change, and whether the change is our own renumbering (R49).</summary>
+    private string _sequenceLastText = string.Empty;
+    private bool _sequenceRenumbering;
+    private string? _sequenceRenumberFrom;
+    private bool _sequenceComposing;
+
     private static string SequenceDataRoot => AxisData.Resolve(AppContext.BaseDirectory);
 
     private bool SequenceDirty => SequenceEditor.Text != _sequenceSavedText;
@@ -172,9 +178,64 @@ public partial class MainWindow
 
     private void SequenceEditor_TextChanged(object sender, TextChangedEventArgs e)
     {
+        var before = _sequenceLastText;
+        var after = SequenceEditor.Text;
+        _sequenceLastText = after;
+
+        // R49: only the user's own edits renumber; not loading, undo or redo, or the renumbering itself.
+        if (!_sequenceRenumbering)
+        {
+            if (!SequenceEditor.IsKeyboardFocusWithin || e.UndoAction is UndoAction.Undo or UndoAction.Redo or UndoAction.Clear)
+            {
+                _sequenceRenumberFrom = null;
+            }
+            else if (_sequenceRenumberFrom is null)
+            {
+                // Done after the edit settles; an IME composition (pinyin not yet committed) waits for its commit.
+                // Edits made before then are taken together, from the text before the first of them.
+                _sequenceRenumberFrom = before;
+                if (!_sequenceComposing)
+                {
+                    Dispatcher.BeginInvoke(DispatcherPriority.Input, RenumberSequence);
+                }
+            }
+        }
+
         UpdateSequenceDirty();
         _sequenceCheckTimer.Stop();
         _sequenceCheckTimer.Start();
+    }
+
+    private void RenumberSequence()
+    {
+        if (_sequenceRenumberFrom is not { } before)
+        {
+            return;
+        }
+
+        _sequenceRenumberFrom = null;
+        var edits = SequenceNumbering.Adjust(before, SequenceEditor.Text);
+        if (edits.Count == 0)
+        {
+            return;
+        }
+
+        var caret = SequenceEditor.CaretIndex;
+        _sequenceRenumbering = true;
+        SequenceEditor.BeginChange();
+        foreach (var edit in edits)
+        {
+            SequenceEditor.Select(edit.Start, edit.Length);
+            SequenceEditor.SelectedText = edit.Text;
+            if (edit.Start < caret)
+            {
+                caret += edit.Text.Length - edit.Length;
+            }
+        }
+
+        SequenceEditor.EndChange();
+        SequenceEditor.Select(caret, 0);
+        _sequenceRenumbering = false;
     }
 
     // R48: typed text gets a space after the index; doubled spaces and unused symbols are not added.
@@ -186,6 +247,8 @@ public partial class MainWindow
             var offset = ime.ResultOffset;
             var committed = e.Text;
             Dispatcher.BeginInvoke(DispatcherPriority.Input, () => FixImeCommit(offset, committed));
+            _sequenceComposing = false;
+            Dispatcher.BeginInvoke(DispatcherPriority.Input, RenumberSequence);
             return;
         }
 
@@ -226,6 +289,9 @@ public partial class MainWindow
     // The space key does not raise PreviewTextInput in a TextBox.
     private void SequenceEditor_PreviewKeyDown(object sender, KeyEventArgs e)
     {
+        // R49: keys the IME takes may change the text before the commit; renumbering waits for the commit.
+        _sequenceComposing = e.Key == Key.ImeProcessed;
+
         if (e.Key == Key.Space && Keyboard.Modifiers is ModifierKeys.None or ModifierKeys.Shift
             && SequenceTyping.Filter(SequenceEditor.Text, SequenceEditor.SelectionStart, SequenceEditor.SelectionLength, " ").Length == 0)
         {
