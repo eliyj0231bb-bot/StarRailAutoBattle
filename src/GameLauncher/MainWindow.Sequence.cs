@@ -26,7 +26,7 @@ public partial class MainWindow
     private string _sequenceSavedText = string.Empty;
     private bool _sequencePickerBusy;
 
-    /// <summary>The editor text before the latest change, and whether the change is our own renumbering (R49).</summary>
+    /// <summary>The editor text before the latest change, and whether the change is our own renumbering (R54).</summary>
     private string _sequenceLastText = string.Empty;
     private bool _sequenceRenumbering;
     private string? _sequenceRenumberFrom;
@@ -182,7 +182,7 @@ public partial class MainWindow
         var after = SequenceEditor.Text;
         _sequenceLastText = after;
 
-        // R49: only the user's own edits renumber; not loading, undo or redo, or the renumbering itself.
+        // R54: only the user's own edits renumber; not loading, undo or redo, or the renumbering itself.
         if (!_sequenceRenumbering)
         {
             if (!SequenceEditor.IsKeyboardFocusWithin || e.UndoAction is UndoAction.Undo or UndoAction.Redo or UndoAction.Clear)
@@ -289,7 +289,7 @@ public partial class MainWindow
     // The space key does not raise PreviewTextInput in a TextBox.
     private void SequenceEditor_PreviewKeyDown(object sender, KeyEventArgs e)
     {
-        // R49: keys the IME takes may change the text before the commit; renumbering waits for the commit.
+        // R54: keys the IME takes may change the text before the commit; renumbering waits for the commit.
         _sequenceComposing = e.Key == Key.ImeProcessed;
 
         if (e.Key == Key.Space && Keyboard.Modifiers is ModifierKeys.None or ModifierKeys.Shift

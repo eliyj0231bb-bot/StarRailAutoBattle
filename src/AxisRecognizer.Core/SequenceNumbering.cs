@@ -7,7 +7,7 @@ namespace AxisRecognizer;
 public sealed record TextEdit(int Start, int Length, string Text);
 
 /// <summary>
-/// Keeps the indexes of a hand-written expected sequence in order when a line is inserted or deleted (R49).
+/// Keeps the indexes of a hand-written expected sequence in order when a line is inserted or deleted (R54).
 /// </summary>
 public static partial class SequenceNumbering
 {
@@ -44,7 +44,7 @@ public static partial class SequenceNumbering
         var lines = (string[])newLines.Clone();
         var from = prefix + added.Length;
 
-        // R49: a line becomes an action where there was none, or an action line is gone without a new one.
+        // R54: a line becomes an action where there was none, or an action line is gone without a new one.
         // Anything else (editing an old line's index, splitting or joining lines) is left to the format check.
         if (removedKeys.Count == 0 && addedKeys.Count > 0 && removed.All(IsBare))
         {
