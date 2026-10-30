@@ -31,6 +31,14 @@ public static class CueNames
     /// </summary>
     public const string Banner = "banner";
 
+    /// <summary>
+    /// An ultimate's splash: the ultimate's name above the cyan bar (R56). Labels are the unit's global id, named by the
+    /// user (R57).
+    /// </summary>
+    public const string UltSplash = "ult-splash";
+
+    public static bool IsUnitIdLabel(string label) => label.Length > 1 && label[0] == 'U' && label[1..].All(char.IsAsciiDigit);
+
     public static readonly IReadOnlyDictionary<string, IReadOnlyList<string>> Labels = new Dictionary<string, IReadOnlyList<string>>
     {
         // ally-main: teal dot; ally-extra: teal four-point star (ultimates, "小叉号"); enemy-main: red dot;
@@ -54,6 +62,7 @@ public static class CueNames
         (Banner, "battle-end") => "“结束战斗”横幅",
         (Banner, "challenge-success") => "结算“挑战成功”",
         (AvBar, _) => $"轮次 {label.Split('|')[0]}，剩余行动值 {label.Split('|').ElementAtOrDefault(1)}",
+        (UltSplash, _) => $"{label} 的终结技立绘",
         (_, "none") => "无",
         _ => label,
     };
@@ -65,6 +74,16 @@ public static class CueNames
             if (!IsAvBarLabel(label))
             {
                 throw new ArgumentException($"轮次行动值条的标签写成“轮次|行动值”，例如 2|194：{label}");
+            }
+
+            return;
+        }
+
+        if (cue == UltSplash)
+        {
+            if (!IsUnitIdLabel(label))
+            {
+                throw new ArgumentException($"终结技立绘的标签写单位编号，例如 U0003：{label}");
             }
 
             return;
@@ -175,6 +194,12 @@ public sealed partial class CueReader : IDisposable
             if (sample.Cue == CueNames.AvBar)
             {
                 LearnAvBar(sample.Label, crop);
+                continue;
+            }
+
+            if (sample.Cue == CueNames.UltSplash)
+            {
+                _splashNames.Add((sample.Label, SplashTemplate(crop)));
                 continue;
             }
 
@@ -293,7 +318,15 @@ public sealed partial class CueReader : IDisposable
 
     public int MarkerShapeSamples => _markerShapes.Count;
 
-    public void Dispose() => _reticles.ForEach(r => r.Dispose());
+    public void Dispose()
+    {
+        _reticles.ForEach(r => r.Dispose());
+        _splashNames.ForEach(s =>
+        {
+            s.Template.Gray.Dispose();
+            s.Template.Text.Dispose();
+        });
+    }
 
     /// <summary>The square stored as a reticle sample around a center given in content-height units.</summary>
     public Rect ReticleRect(Rect content, double x, double y)

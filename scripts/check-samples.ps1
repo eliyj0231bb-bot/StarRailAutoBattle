@@ -5,7 +5,8 @@
 #
 #   pwsh scripts/check-samples.ps1            # all samples
 #   pwsh scripts/check-samples.ps1 铁墓       # samples whose folder name contains 铁墓
-param([string]$Filter = '', [switch]$NoBuild)
+#   pwsh scripts/check-samples.ps1 -UltSource splash   # ultimates from the full-screen splash instead of the team bar (R55)
+param([string]$Filter = '', [switch]$NoBuild, [ValidateSet('team-bar', 'splash')][string]$UltSource = 'team-bar')
 
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
@@ -18,6 +19,7 @@ if (-not $NoBuild) {
 }
 $axis = Get-ChildItem src/AxisTool/bin/Release -Recurse -Filter axis.exe | Select-Object -First 1
 if (-not $axis) { throw '找不到 axis.exe。' }
+Write-Host "终结技来源：$UltSource"
 
 # One action per line: "序号 单位 [招式] [目标] [@ ...]" or a segment marker "== 换波 ==". Comments and targets are ignored.
 function Read-Actions([string]$text) {
@@ -117,7 +119,7 @@ foreach ($sample in Get-ChildItem samples -Directory | Where-Object { $_.Name -l
 
     # actual.txt is the analyzer's latest output, kept for inspection; it is gitignored.
     $actualFile = Join-Path $sample.FullName 'actual.txt'
-    $axisArgs = @('sequence', $info.video, '--out', $actualFile)
+    $axisArgs = @('sequence', $info.video, '--out', $actualFile, '--ult-source', $UltSource)
     if ($info.team) { $axisArgs += '--team', $info.team }
     if ($null -ne $info.start) { $axisArgs += '--start', "$($info.start)" }
     if ($null -ne $info.end) { $axisArgs += '--end', "$($info.end)" }

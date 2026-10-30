@@ -14,6 +14,21 @@ public sealed record FrameObservation(double Time, bool AxisFound, string? Curre
 {
     /// <summary>The team bar's ultimate buttons seen in this frame (missing slots were not found; R29).</summary>
     public IReadOnlyList<UltButton> UltButtons { get; init; } = [];
+
+    /// <summary>An ultimate's splash bar in this frame (R56), and whose ultimate its name shows when a named sample matched (R57).</summary>
+    public UltSplash? Splash { get; init; }
+
+    public string? SplashUnit { get; init; }
+}
+
+/// <summary>Where ultimates are read from (R55: two ways, compared on the samples).</summary>
+public enum UltSource
+{
+    /// <summary>The team bar's buttons going out (R29).</summary>
+    TeamBar,
+
+    /// <summary>The full-screen splash (R56); the release button is not read yet (Q7).</summary>
+    Splash,
 }
 
 /// <summary>
@@ -124,6 +139,8 @@ public sealed class EventAnalyzer
     private readonly Dictionary<int, (string State, double Since)> _slotRun = [];
     private readonly Dictionary<int, bool> _slotReady = [];
     private readonly Dictionary<int, double> _slotLastReady = [];
+    private readonly Dictionary<int, double> _slotSeen = [];
+    private readonly Dictionary<int, double> _slotSeenSince = [];
     private readonly List<BattleEvent> _pressUltimates = [];
 
     /// <summary>All events in time order (ultimates confirmed after their press are numbered back in time, R51).</summary>
@@ -231,7 +248,11 @@ public sealed class EventAnalyzer
             }
         }
 
-        if (frame.AxisFound)
+        if (UltSource == UltSource.Splash)
+        {
+            TrackSplash(frame);
+        }
+        else if (frame.AxisFound)
         {
             // R45: insert cards are not used; ultimates come from the team bar only (R29).
             TrackUltButtons(frame);
@@ -261,6 +282,19 @@ public sealed class EventAnalyzer
     public double UltHoldSeconds { get; init; } = 1.0;
 
     /// <summary>
+    /// After a button leaves ready, seeing it ready again this long means the leave was only a flicker (R29: a pressed
+    /// button stays out). 铁墓 0:47–0:57: flickers up to 0.33 s, ready stretches between them 0.6–0.9 s, never a full
+    /// hold, so the 0:49 flicker was taken as the press of the 0:57 ultimate.
+    /// </summary>
+    public double UltReadyAgainSeconds { get; init; } = 0.5;
+
+    /// <summary>A ready stretch is broken when the button is not found for longer than this (the bar hidden by a cut-in).</summary>
+    public double UltSeenGapSeconds { get; init; } = 0.2;
+
+    /// <summary>Where ultimates are read from (R55).</summary>
+    public UltSource UltSource { get; init; } = UltSource.TeamBar;
+
+    /// <summary>
     /// The unit in each team slot (index 0 = slot 1), when known (e.g. from the strategy video's team list). Without
     /// it, presses only mark ultimates and slots; they never name a unit (a guessed mapping named one wrongly).
     /// </summary>
@@ -281,15 +315,27 @@ public sealed class EventAnalyzer
                 since = frame.Time;
             }
 
+            // The flicker check counts only ready readings seen without a gap: ready frames on both sides of a stretch
+            // where the button was not found are not one ready stretch (铁墓 0:57.6: two ready frames between cut-in
+            // frames, after the press). A whole hold still counts, gaps and all, since some buttons are often not found
+            // (slot 1's heart button, Q5a).
+            var gap = frame.Time - _slotSeen.GetValueOrDefault(button.Slot, frame.Time) > UltSeenGapSeconds;
+            var seenSince = state == last && !gap ? _slotSeenSince.GetValueOrDefault(button.Slot, since) : frame.Time;
             _slotRun[button.Slot] = (state, since);
+            _slotSeen[button.Slot] = frame.Time;
+            _slotSeenSince[button.Slot] = seenSince;
             var held = frame.Time - since >= UltHoldSeconds;
             if (state == "ready")
             {
+                if (held || frame.Time - seenSince >= UltReadyAgainSeconds)
+                {
+                    // Ready again: an earlier leave was only a flicker (R29).
+                    _slotLastReady.Remove(button.Slot);
+                }
+
                 if (held)
                 {
-                    // Ready again for a whole hold: an earlier leave was only a flicker.
                     _slotReady[button.Slot] = true;
-                    _slotLastReady.Remove(button.Slot);
                 }
             }
             else if (_slotReady.GetValueOrDefault(button.Slot))
@@ -316,36 +362,108 @@ public sealed class EventAnalyzer
     /// Otherwise it is a new extra action under the main action running at the press (R51, R11), possibly numbered back
     /// in time when the press is confirmed after the next main action started.
     /// </summary>
-    private void OnPress(int slot, double pressed)
+    private void OnPress(int slot, double pressed) =>
+        AddUltimate(pressed, slot <= Team.Count ? Team[slot - 1] : null, slot, "队伍栏终结技按钮熄灭", $"第 {slot} 位的终结技", 0.5);
+
+    /// <summary>
+    /// An ultimate seen at a time (a press, R29, or a splash, R56). A star turn of that unit that already began around
+    /// then is this ultimate in the current cell (R52); otherwise it is a new extra action under the main action
+    /// running at that time (R51, R56, R11), and a star turn of the unit shortly after is linked to it (Decide).
+    /// </summary>
+    private void AddUltimate(double time, string? unit, int? slot, string note, string what, double starBefore)
     {
         if (!_inBattle)
         {
             return;
         }
 
-        var slotUnit = slot <= Team.Count ? Team[slot - 1] : null;
         var stars = _events.Where(e => e.StepKind == AxisRecognizer.StepKind.Extra && e.Skill is null && e.TeamSlot is null
-            && e.Time >= pressed - 0.5 && e.Time <= pressed + PressMatchSeconds && (slotUnit is null || e.UnitId == slotUnit)).ToList();
+            && e.Time >= time - starBefore && e.Time <= time + PressMatchSeconds && (unit is null || e.UnitId == unit)).ToList();
         if (stars.Count == 1)
         {
             var star = stars[0];
             (star.Skill, star.TeamSlot) = (SkillKind.Ultimate, slot);
-            star.Notes.Add("队伍栏终结技按钮熄灭");
-            Trace.Add($"{pressed:0.00} 第 {slot} 位的终结技 = 已认定的四角星回合 {star.Index} {star.UnitId}");
+            star.Notes.Add(note);
+            Trace.Add($"{time:0.00} {what} = 已认定的四角星回合 {star.Index} {star.UnitId}");
             return;
         }
 
-        var (segment, main) = MainAt(pressed);
+        var (segment, main) = MainAt(time);
         var e = new BattleEvent
         {
-            Kind = BattleEventKind.Action, Time = pressed, Segment = segment, StepKind = AxisRecognizer.StepKind.Extra,
-            Main = main, UnitId = slotUnit, Skill = SkillKind.Ultimate, TeamSlot = slot,
+            Kind = BattleEventKind.Action, Time = time, Segment = segment, StepKind = AxisRecognizer.StepKind.Extra,
+            Main = main, UnitId = unit, Skill = SkillKind.Ultimate, TeamSlot = slot,
         };
-        e.Notes.Add("队伍栏终结技按钮熄灭");
+        e.Notes.Add(note);
         _events.Add(e);
         _pressUltimates.Add(e);
         RenumberExtras(segment, main);
-        Trace.Add($"{pressed:0.00} 第 {slot} 位的终结技，记为 {e.Index} {e.UnitId ?? "单位看不清"}（挂在熄灭时进行的主轴行动下）");
+        Trace.Add($"{time:0.00} {what}，记为 {e.Index} {e.UnitId ?? "单位看不清"}（挂在这一刻进行的主轴行动下）");
+    }
+
+    // The splash being shown (R56): first and last frame seen, frames, and the units its name matched.
+    private int _splashFrames;
+    private bool _splashDecided;
+    private double _splashStart;
+    private double _splashLast;
+    private readonly Dictionary<string, int> _splashUnits = [];
+
+    /// <summary>
+    /// The ultimate's splash (R56): once its bar has been seen in <see cref="CueReader.SplashMinFrames"/> frames in a
+    /// row and then is gone, it is one ultimate at its first frame, whose unit is the name the frames matched most (R57).
+    /// </summary>
+    private void TrackSplash(FrameObservation frame)
+    {
+        if (_splashFrames > 0 && frame.Time - _splashLast > UltSeenGapSeconds)
+        {
+            EndSplash();
+        }
+
+        if (frame.Splash is null)
+        {
+            return;
+        }
+
+        if (_splashFrames == 0)
+        {
+            _splashStart = frame.Time;
+        }
+
+        _splashFrames++;
+        _splashLast = frame.Time;
+        if (frame.SplashUnit is { } unit)
+        {
+            _splashUnits[unit] = _splashUnits.GetValueOrDefault(unit) + 1;
+        }
+
+        // R47: decide as soon as the splash is real and its name agreed twice, not when it ends (about 0.6 s later).
+        if (!_splashDecided && _splashFrames >= CueReader.SplashMinFrames && Turn.Top(_splashUnits, 2) is not null)
+        {
+            DecideSplash();
+        }
+    }
+
+    private void EndSplash()
+    {
+        if (!_splashDecided && _splashFrames >= CueReader.SplashMinFrames)
+        {
+            DecideSplash();
+        }
+
+        _splashFrames = 0;
+        _splashDecided = false;
+        _splashUnits.Clear();
+    }
+
+    private void DecideSplash()
+    {
+        _splashDecided = true;
+        var unit = Turn.Top(_splashUnits, 1);
+        Trace.Add($"{_splashStart:0.00} 终结技立绘（{_splashLast:0.00} 认定，{_splashFrames} 帧），单位 {unit ?? "认不出"}");
+        // The splash shows at the release; the ultimate's star turn (waiting in the current cell) began before it, as
+        // long before as the player waited (R58: the earlier one counts; 铁墓 2:37.5 star, 2:38.0 splash). Only a
+        // named splash looks that far back, so an unnamed one does not take another unit's star.
+        AddUltimate(_splashStart, unit, null, "终结技立绘", "立绘的终结技", unit is null ? 0.5 : PressMatchSeconds);
     }
 
     /// <summary>The segment and main action running at a time (0 before the segment's first main action).</summary>
@@ -390,6 +508,11 @@ public sealed class EventAnalyzer
     /// <summary>Ends the last turn (end of video or capture).</summary>
     public void Finish()
     {
+        if (_splashFrames > 0)
+        {
+            EndSplash();
+        }
+
         EndTurn();
         if (!_sawBattleStart && _events.Count > 0 && !_problems.Any(p => p.Contains("未检测到", StringComparison.Ordinal)))
         {
@@ -536,7 +659,7 @@ public sealed class EventAnalyzer
             pressed.Notes.Add("进入当前格等待释放");
             turn.Event = pressed;
             Fill(turn, pressed);
-            Trace.Add($"{turn.Start:0.00} 四角星回合是 {pressed.Index} 的终结技（队伍栏熄灭），单位 {pressed.UnitId}");
+            Trace.Add($"{turn.Start:0.00} 四角星回合是 {pressed.Index} 的终结技（{pressed.Notes[0]}），单位 {pressed.UnitId}");
             return null;
         }
 

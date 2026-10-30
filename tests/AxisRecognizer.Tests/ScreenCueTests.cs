@@ -11,6 +11,28 @@ public class ScreenCueTests : IDisposable
 
     public void Dispose() => _dir.Dispose();
 
+    [Fact]
+    public void The_splash_name_bar_is_found_and_a_blue_backdrop_is_not()
+    {
+        // R56 (铁墓 0:19.6): a cyan bar 0.31 of game height long under the white name, dark runes printed on it.
+        var content = new Rect(0, 0, 1920, 1080);
+        using var splash = new Mat(1080, 1920, MatType.CV_8UC3, new Scalar(40, 20, 30));
+        Cv2.Rectangle(splash, new Rect(340, 842, 335, 17), Hsv(100, 220, 220), -1);
+        for (var x = 400; x < 640; x += 30)
+        {
+            Cv2.Rectangle(splash, new Rect(x, 846, 6, 9), new Scalar(90, 40, 20), -1);
+        }
+
+        Cv2.Rectangle(splash, new Rect(360, 780, 280, 50), Scalar.White, -1);
+        var found = CueReader.ReadUltSplash(splash, content);
+        Assert.NotNull(found);
+        Assert.InRange(found.Length, 0.29, 0.33);
+
+        using var backdrop = new Mat(1080, 1920, MatType.CV_8UC3, new Scalar(40, 20, 30));
+        Cv2.Rectangle(backdrop, new Rect(200, 700, 1300, 380), Hsv(100, 220, 220), -1);
+        Assert.Null(CueReader.ReadUltSplash(backdrop, content));
+    }
+
     private static Scalar Hsv(double h, double s, double v)
     {
         using var one = new Mat(1, 1, MatType.CV_8UC3, new Scalar(h, s, v));

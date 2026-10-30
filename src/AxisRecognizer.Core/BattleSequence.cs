@@ -26,11 +26,12 @@ public static class BattleSequence
         double timeOffset = 0,
         IProgress<double>? progress = null,
         CancellationToken cancellationToken = default,
-        IReadOnlyList<string?>? team = null)
+        IReadOnlyList<string?>? team = null,
+        UltSource ultSource = UltSource.TeamBar)
     {
         var recognizer = new Recognizer(kb);
         using var reader = new CueReader(kb);
-        var analyzer = new EventAnalyzer { StableFrames = Math.Max(2, (int)Math.Round(0.2 / every)), Team = team ?? [] };
+        var analyzer = new EventAnalyzer { StableFrames = Math.Max(2, (int)Math.Round(0.2 / every)), Team = team ?? [], UltSource = ultSource };
         var (_, seconds, _, _) = VideoFrames.Probe(videoPath);
         var last = end ?? seconds;
         Rect? lastCurrent = null;
@@ -52,11 +53,20 @@ public static class BattleSequence
                 }
 
                 var unit = current is { IsEmpty: false, UnitId: { } id } && !kb.IsNonAction(id) ? kb.ResolveUnit(id).Id : null;
-                // R45: insert cards are not read for ultimates; R29: the team bar's buttons are.
-                analyzer.Feed(new FrameObservation(time + timeOffset, result.AxisFound, unit, cues)
+                // R45: insert cards are not read for ultimates; R29: the team bar's buttons are, or R55, R56: the splash.
+                var observation = new FrameObservation(time + timeOffset, result.AxisFound, unit, cues);
+                if (ultSource == UltSource.Splash)
                 {
-                    UltButtons = CueReader.ReadUltButtons(frame, result.Content),
-                });
+                    var splash = CueReader.ReadUltSplash(frame, result.Content);
+                    var named = splash is null ? null : reader.NameSplash(frame, result.Content, splash);
+                    observation = observation with { Splash = splash, SplashUnit = named?.UnitId };
+                }
+                else
+                {
+                    observation = observation with { UltButtons = CueReader.ReadUltButtons(frame, result.Content) };
+                }
+
+                analyzer.Feed(observation);
                 progress?.Report(last > start ? Math.Clamp((time - start) / (last - start), 0, 1) : 0);
             }
         }

@@ -138,6 +138,7 @@ internal static class Program
 
             凹分序列
               axis sequence <视频> [--every 秒，默认 1/15] [--start 秒] [--end 秒] [--out 序列.txt] [--team 一号位,二号位,三号位,四号位] [--trace 1]
+                                [--ult-source team-bar|splash（终结技看队伍栏按钮，或只看全屏立绘；默认 team-bar）]
                                     （从攻略视频识别预期序列，输出凹分序列页的格式；读数和视频时间写在 # 注释里）
                                     （--team 按队伍栏从左到右给出四个角色，用来认出终结技是谁放的；不给时只标“队伍第几位”）
 
@@ -154,6 +155,8 @@ internal static class Program
               axis cue list
               axis cue scan <视频> [--every 秒] [--start 秒] [--end 秒] [--sheet 标记拼图.jpg]
                                     （逐帧打印各线索的读数，供核对；--sheet 把每帧的标记裁剪和读数拼成一张图）
+              axis cue splash <视频> [--every 秒] [--start 秒] [--end 秒] [--sheet 立绘拼图.jpg]
+                                    （列出终结技立绘出现的时间；--sheet 把每次立绘的终结技名拼成一张图，供用户命名）
             """);
     }
 
@@ -1231,7 +1234,13 @@ internal static class Program
         }
 
         var watch = System.Diagnostics.Stopwatch.StartNew();
-        var result = BattleSequence.Run(kb, video, every, args.Double("start", 0), end, offset, team: team);
+        var ultSource = args.Get("ult-source") switch
+        {
+            null or "team-bar" => UltSource.TeamBar,
+            "splash" => UltSource.Splash,
+            var other => throw new UsageException($"--ult-source 只能是 team-bar 或 splash：{other}"),
+        };
+        var result = BattleSequence.Run(kb, video, every, args.Double("start", 0), end, offset, team: team, ultSource: ultSource);
         var text = BattleSequence.ToSequenceText(kb, result, $"{OriginOf(video)}，知识库 v{kb.Version}");
         if (args.Get("out") is { } outFile)
         {
@@ -1326,6 +1335,11 @@ internal static class Program
                 var video = args.Positional.ElementAtOrDefault(2) ?? throw new UsageException("缺少视频路径。");
                 var cue = args.Require("cue");
                 var label = args.Require("label");
+                if (cue == CueNames.UltSplash)
+                {
+                    return AddSplashSamples(kb, video, label, args);
+                }
+
                 CueNames.Check(cue, label);
                 var labelSource = args.Get("label-source") ?? "claude-assisted";
                 var times = args.Require("at").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
@@ -1568,9 +1582,179 @@ internal static class Program
                 return 0;
             }
 
+            case "splash":
+            {
+                // R56, R57: list the ultimate splashes in one or more videos and cut their name areas for the user to name.
+                var videos = args.Positional.Skip(2).ToList();
+                if (videos.Count == 0)
+                {
+                    throw new UsageException("缺少视频路径。");
+                }
+
+                double? end = args.Get("end") is { } e ? double.Parse(e, CultureInfo.InvariantCulture) : null;
+                var splashes = new List<(int Video, double Start, double End, int Frames, UltSplash Best, Mat Name)>();
+                try
+                {
+                    for (var v = 0; v < videos.Count; v++)
+                    {
+                        var first = splashes.Count;
+                        foreach (var (time, frame) in VideoFrames.Sample(videos[v], args.Double("every", 1.0 / 15), args.Double("start", 0), end))
+                        {
+                            using (frame)
+                            {
+                                var content = Geometry.DetectContent(frame);
+                                if (CueReader.ReadUltSplash(frame, content) is not { } splash)
+                                {
+                                    continue;
+                                }
+
+                                var last = splashes.Count > first ? splashes[^1] : default;
+                                var isNew = splashes.Count == first || time - last.End > 0.5;
+                                if (isNew || splash.Length > last.Best.Length)
+                                {
+                                    // The name above the bar, cut at the frame with the longest (settled) bar.
+                                    var cut = new Mat(frame, CueReader.SplashNameRect(splash, content, frame.Width, frame.Height)).Clone();
+                                    if (isNew)
+                                    {
+                                        splashes.Add((v + 1, time, time, 1, splash, cut));
+                                        continue;
+                                    }
+
+                                    last.Name.Dispose();
+                                    last = last with { Best = splash, Name = cut };
+                                }
+
+                                splashes[^1] = last with { End = time, Frames = last.Frames + 1 };
+                            }
+                        }
+                    }
+
+                    // Shorter runs are backdrops that look like a bar for a frame or two.
+                    var shown = splashes.Where(s => s.Frames >= CueReader.SplashMinFrames).ToList();
+
+                    // Same name, same group (matching any splash already in the group), so the user names each group once.
+                    var groups = new List<List<int>>();
+                    var group = new int[shown.Count];
+                    var scores = new double[shown.Count];
+                    for (var i = 0; i < shown.Count; i++)
+                    {
+                        var matches = groups.Select(g => g.Max(j => CueReader.SplashNameMatch(shown[j].Name, shown[i].Name))).ToList();
+                        var best = matches.Count == 0 ? -1 : matches.IndexOf(matches.Max());
+                        if (best >= 0 && matches[best] >= CueReader.SplashNameScore)
+                        {
+                            groups[best].Add(i);
+                            (group[i], scores[i]) = (best + 1, matches[best]);
+                        }
+                        else
+                        {
+                            groups.Add([i]);
+                            (group[i], scores[i]) = (groups.Count, 1);
+                        }
+                    }
+
+                    for (var v = 0; v < videos.Count; v++)
+                    {
+                        Console.WriteLine($"视频 {v + 1}：{videos[v]}");
+                    }
+
+                    Console.WriteLine("序号\t视频\t开始\t结束\t帧数\t横条长\t组\t和组内最像的相似度");
+                    for (var i = 0; i < shown.Count; i++)
+                    {
+                        var s = shown[i];
+                        Console.WriteLine($"{i + 1}\t{s.Video}\t{s.Start:0.00}\t{s.End:0.00}\t{s.Frames}\t{s.Best.Length:0.00}\t{group[i]}\t{scores[i]:0.00}");
+                    }
+
+                    if (args.Get("sheet") is { } sheetPath && shown.Count > 0)
+                    {
+                        // One row per group, so a group can be named at a glance.
+                        const int tileW = 300, tileH = 73, perRow = 6;
+                        var rows = groups.Sum(g => (g.Count + perRow - 1) / perRow);
+                        using var sheet = new Mat(rows * (tileH + 4), perRow * (tileW + 4), MatType.CV_8UC3, new Scalar(40, 40, 40));
+                        var row = 0;
+                        foreach (var members in groups)
+                        {
+                            for (var k = 0; k < members.Count; k++)
+                            {
+                                var i = members[k];
+                                using var tile = new Mat();
+                                Cv2.Resize(shown[i].Name, tile, new Size(tileW, tileH));
+                                Cv2.Rectangle(tile, new Rect(0, 0, 170, 16), Scalar.Black, -1);
+                                Cv2.PutText(tile, $"G{group[i]} #{i + 1} v{shown[i].Video} {shown[i].Start:0.0}s", new Point(3, 12), HersheyFonts.HersheySimplex, 0.4, Scalar.Yellow);
+                                using var dst = new Mat(sheet, new Rect(k % perRow * (tileW + 4), (row + k / perRow) * (tileH + 4), tileW, tileH));
+                                tile.CopyTo(dst);
+                            }
+
+                            row += (members.Count + perRow - 1) / perRow;
+                        }
+
+                        ImageIO.WriteJpeg(sheetPath, sheet, 90);
+                        Console.WriteLine($"立绘拼图：{sheetPath}");
+                    }
+                }
+                finally
+                {
+                    splashes.ForEach(s => s.Name.Dispose());
+                }
+
+                return 0;
+            }
+
             default:
                 throw new UsageException($"未知 cue 子命令：{sub}");
         }
+    }
+
+    /// <summary>
+    /// Stores user-named splash samples (R57): for each --at time, the name above the bar in the frame within the next
+    /// 0.6 s whose bar is longest (settled). The label is the unit's name or id as the user wrote it.
+    /// </summary>
+    private static int AddSplashSamples(KnowledgeBase kb, string video, string unitText, Args args)
+    {
+        var unitId = ExpectedSequence.KbLookup(kb)(unitText) is { UnitId: { } id } ? id
+            : throw new UsageException($"--label 里的“{unitText}”：{ExpectedSequence.KbLookup(kb)(unitText).Error}");
+        var labelSource = args.Get("label-source") ?? "user";
+        var origin = OriginOf(video);
+        var details = new List<string>();
+        foreach (var at in args.Require("at").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                     .Select(t => double.Parse(t, CultureInfo.InvariantCulture)).Order())
+        {
+            (double Time, Mat Crop, double Length)? best = null;
+            foreach (var (time, frame) in VideoFrames.Sample(video, 1.0 / 15, at, at + 0.6))
+            {
+                using (frame)
+                {
+                    var content = Geometry.DetectContent(frame);
+                    if (CueReader.ReadUltSplash(frame, content) is { Length: >= CueReader.SplashSettledMin } splash && splash.Length > (best?.Length ?? 0))
+                    {
+                        best?.Crop.Dispose();
+                        best = (time, new Mat(frame, CueReader.SplashNameRect(splash, content, frame.Width, frame.Height)).Clone(), splash.Length);
+                    }
+                }
+            }
+
+            if (best is not { } b)
+            {
+                details.Add($"{at:0.00} 秒后 0.6 秒内没有完整的终结技立绘，跳过");
+                continue;
+            }
+
+            using (b.Crop)
+            {
+                var sample = kb.AddCueSample(CueNames.UltSplash, unitId, b.Crop,
+                    new SourceInfo { Type = "user-video", Origin = $"{origin}@{b.Time.ToString("0.000", CultureInfo.InvariantCulture)}", License = "本地算法沙箱内研究使用" },
+                    labelSource, args.Get("notes"));
+                details.Add($"{sample.Id}：{unitText}（{unitId}）的终结技立绘，{b.Time:0.000} 秒");
+            }
+        }
+
+        details.ForEach(Console.WriteLine);
+        if (details.Any(d => d.StartsWith('C')))
+        {
+            kb.Commit($"终结技立绘样本：{unitText}", details);
+            Console.WriteLine($"知识库 v{kb.Version}");
+        }
+
+        return 0;
     }
 
     /// <summary>"BV1EM8Q69EqZ recording.avi" for a recorder folder (its info file names the video), else the file name.</summary>

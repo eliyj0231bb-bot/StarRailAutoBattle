@@ -23,7 +23,9 @@ public class EventAnalyzerTests
         string? Phase = null,
         int Cards = 0,
         double? Lit2 = null,
-        double? Lit3 = null);
+        double? Lit3 = null,
+        bool Splash = false,
+        string? SplashUnit = null);
 
     private static IReadOnlyList<BattleEvent> Run(EventAnalyzer analyzer, IEnumerable<(F Frame, int Count)> script)
     {
@@ -50,7 +52,12 @@ public class EventAnalyzerTests
                     buttons.Add(new UltButton(3, 0.69, 0.83, 0.04, lit3, lit3));
                 }
 
-                analyzer.Feed(new FrameObservation(t, f.Axis, f.Axis ? f.Unit : null, cues) { UltButtons = buttons });
+                analyzer.Feed(new FrameObservation(t, f.Axis, f.Axis ? f.Unit : null, cues)
+                {
+                    UltButtons = buttons,
+                    Splash = f.Splash ? new UltSplash(new Rect(), 0.31) : null,
+                    SplashUnit = f.SplashUnit,
+                });
             }
         }
 
@@ -160,6 +167,85 @@ public class EventAnalyzerTests
         var ultimate = events.Single(e => e.StepKind == StepKind.Extra);
         Assert.Equal(("1-1", (string?)null, (int?)2), (ultimate.Index, ultimate.UnitId, ultimate.TeamSlot));
         Assert.Single(analyzer.Trace, line => line.Contains("按钮熄灭", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void A_button_that_keeps_flickering_while_ready_is_pressed_at_its_last_leave()
+    {
+        // R29, R52 (铁墓 0:47–1:00): slot 2 stays ready for seconds but dips every 0.8 s, never ready for a whole hold.
+        // The first dip is not the press; the ultimate is the star turn of U after the bar goes dark.
+        (F, int)[] Flickers(string unit) =>
+            Enumerable.Range(0, 4).SelectMany(_ => new[] { (new F(unit, "ally-main", Lit2: 0.3), 2), (new F(unit, "ally-main", Lit2: 0.8), 10) }).ToArray();
+        var events = Run(new EventAnalyzer { Team = [null, "U", null, null] }, [
+            BattleStart,
+            (new F("A", "ally-main", Lit2: 0.8), 30),
+            .. Flickers("A"),
+            .. Flickers("B"),
+            (new F("B", "ally-main"), 5),                    // button not found
+            (new F("B", "ally-main", Lit2: 0.8), 2),         // a ready glimpse during the cut-in
+            (new F(Axis: false), 20),
+            (new F("U", "ally-extra", Lit2: 0.0), 20),
+            (new F("C", "ally-main", Lit2: 0.0), 10),
+        ]);
+
+        Assert.Equal(["战斗开始", "1 A", "2 B", "2-1 U", "3 C"], Lines(events));
+        Assert.Equal(SkillKind.Ultimate, events.Single(e => e.UnitId == "U").Skill);
+    }
+
+    [Fact]
+    public void A_splash_is_an_ultimate_under_the_main_action_running_and_team_bar_presses_are_not_read()
+    {
+        // R55, R56, R57: splash mode. The splash's name matched U; slot 2's button going out is ignored in this mode.
+        var events = Run(new EventAnalyzer { UltSource = UltSource.Splash, Team = [null, "W", null, null] }, [
+            BattleStart,
+            (new F("A", "ally-main", Lit2: 0.8), 30),
+            (new F("A", "ally-main", Lit2: 0.0), 20),        // a press, not read in splash mode
+            (new F(Axis: false, Splash: true), 2),           // the name sliding in, not yet matched
+            (new F(Axis: false, Splash: true, SplashUnit: "U"), 4),
+            (new F(Axis: false), 10),                        // the ultimate's animation
+            (new F("B", "ally-main"), 10),
+        ]);
+
+        Assert.Equal(["战斗开始", "1 A", "1-1 U", "2 B"], Lines(events));
+        Assert.Equal(SkillKind.Ultimate, events.Single(e => e.UnitId == "U").Skill);
+    }
+
+    [Fact]
+    public void A_splash_and_the_star_turn_of_its_unit_are_one_ultimate_and_a_short_bar_is_no_splash()
+    {
+        // R56, R52 (铁墓 0:58.9 splash, 1:00.2 star turn of the same unit). A bar seen for two frames is a backdrop.
+        var events = Run(new EventAnalyzer { UltSource = UltSource.Splash }, [
+            BattleStart,
+            (new F("A", "ally-main"), 30),
+            (new F(Axis: false, Splash: true), 2),           // too short
+            (new F("A", "ally-main"), 10),
+            (new F(Axis: false, Splash: true, SplashUnit: "U"), 5),
+            (new F(Axis: false), 10),
+            (new F("U", "ally-extra"), 10),
+            (new F(Axis: false, Splash: true), 5),           // a splash no named sample matched: unit left blank
+            (new F(Axis: false), 10),
+            (new F("B", "ally-main"), 10),
+        ]);
+
+        Assert.Equal(["战斗开始", "1 A", "1-1 U", "1-2 ", "2 B"], Lines(events));
+        Assert.All(events.Where(e => e.StepKind == StepKind.Extra), e => Assert.Equal(SkillKind.Ultimate, e.Skill));
+    }
+
+    [Fact]
+    public void A_star_turn_waiting_before_its_named_splash_is_the_same_ultimate()
+    {
+        // R58, R52 (铁墓 2:37.5 star, 2:38.0 splash): the ultimate waits in the current cell, then is released.
+        var events = Run(new EventAnalyzer { UltSource = UltSource.Splash }, [
+            BattleStart,
+            (new F("A", "ally-main"), 30),
+            (new F("U", "ally-extra"), 30),                  // waiting for release for 2 s
+            (new F(Axis: false, Splash: true, SplashUnit: "U"), 5),
+            (new F(Axis: false), 10),
+            (new F("B", "ally-main"), 10),
+        ]);
+
+        Assert.Equal(["战斗开始", "1 A", "1-1 U", "2 B"], Lines(events));
+        Assert.Equal(SkillKind.Ultimate, events.Single(e => e.UnitId == "U").Skill);
     }
 
     [Fact]

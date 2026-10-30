@@ -1276,5 +1276,113 @@
     "AddedInKbVersion": 125,
     "Notes": "Claude 从开放视频 BV1vAgy6LE9G（绘世）3:00 起读出并标注",
     "Excluded": null
+  },
+  {
+    "Id": "C000072",
+    "Cue": "ult-splash",
+    "Label": "U0003",
+    "File": "cues\\ult-splash\\U0003\\C000072.png",
+    "Sha256": "e366d06ec51efb5ffe7d5c41134408b6f1d1baa219ae5aca0cc153fee4b035ed",
+    "Source": {
+      "Type": "user-video",
+      "Origin": "BV1vAgy6LE9G recording.mp4@15.133",
+      "Url": null,
+      "License": "本地算法沙箱内研究使用",
+      "AccessedAt": "2026-10-30T08:35:48.8118731+00:00"
+    },
+    "LabelSource": "user",
+    "AddedInKbVersion": 126,
+    "Notes": "用户 2026-10-30 按立绘拼图分组命名（R57）",
+    "Excluded": null
+  },
+  {
+    "Id": "C000073",
+    "Cue": "ult-splash",
+    "Label": "U0002",
+    "File": "cues\\ult-splash\\U0002\\C000073.png",
+    "Sha256": "dc590a8e340efa137976c0e0005e149f4cee77c66c75000b91f84baf758b3c91",
+    "Source": {
+      "Type": "user-video",
+      "Origin": "BV1vAgy6LE9G recording.mp4@27.600",
+      "Url": null,
+      "License": "本地算法沙箱内研究使用",
+      "AccessedAt": "2026-10-30T08:35:49.9013638+00:00"
+    },
+    "LabelSource": "user",
+    "AddedInKbVersion": 127,
+    "Notes": "用户 2026-10-30 按立绘拼图分组命名（R57）",
+    "Excluded": null
+  },
+  {
+    "Id": "C000074",
+    "Cue": "ult-splash",
+    "Label": "U0002",
+    "File": "cues\\ult-splash\\U0002\\C000074.png",
+    "Sha256": "5751f1c7538bb3af29af7f7295c89d09a1499816cb5a9c8a5f28780d49443c29",
+    "Source": {
+      "Type": "user-video",
+      "Origin": "BV1pCaX6iEsU recording.mp4@38.519",
+      "Url": null,
+      "License": "本地算法沙箱内研究使用",
+      "AccessedAt": "2026-10-30T08:35:51.4511498+00:00"
+    },
+    "LabelSource": "user",
+    "AddedInKbVersion": 128,
+    "Notes": "用户 2026-10-30 按立绘拼图分组命名（R57）",
+    "Excluded": null
+  },
+  {
+    "Id": "C000075",
+    "Cue": "ult-splash",
+    "Label": "U0001",
+    "File": "cues\\ult-splash\\U0001\\C000075.png",
+    "Sha256": "c658f74ba89cc2b036c43942b3b306cbb3305b025eda74ca7d6707f178da705b",
+    "Source": {
+      "Type": "user-video",
+      "Origin": "BV1vAgy6LE9G recording.mp4@31.133",
+      "Url": null,
+      "License": "本地算法沙箱内研究使用",
+      "AccessedAt": "2026-10-30T08:35:52.8627705+00:00"
+    },
+    "LabelSource": "user",
+    "AddedInKbVersion": 129,
+    "Notes": "用户 2026-10-30 按立绘拼图分组命名（R57）",
+    "Excluded": null
+  },
+  {
+    "Id": "C000076",
+    "Cue": "ult-splash",
+    "Label": "U0001",
+    "File": "cues\\ult-splash\\U0001\\C000076.png",
+    "Sha256": "d239cdc54239cda00be2cdc797f41a0d7016666dc42ceb2ddaa6bc4e5f0df90a",
+    "Source": {
+      "Type": "user-video",
+      "Origin": "BV1vAgy6LE9G recording.mp4@66.200",
+      "Url": null,
+      "License": "本地算法沙箱内研究使用",
+      "AccessedAt": "2026-10-30T08:35:54.7969789+00:00"
+    },
+    "LabelSource": "user",
+    "AddedInKbVersion": 130,
+    "Notes": "用户 2026-10-30 按立绘拼图分组命名（R57）",
+    "Excluded": null
+  },
+  {
+    "Id": "C000077",
+    "Cue": "ult-splash",
+    "Label": "U0001",
+    "File": "cues\\ult-splash\\U0001\\C000077.png",
+    "Sha256": "602a565259105363febc658038e3506db35a2805a6f78d0ffa65fa87cef50d2d",
+    "Source": {
+      "Type": "user-video",
+      "Origin": "BV1pCaX6iEsU recording.mp4@89.945",
+      "Url": null,
+      "License": "本地算法沙箱内研究使用",
+      "AccessedAt": "2026-10-30T08:35:57.2885858+00:00"
+    },
+    "LabelSource": "user",
+    "AddedInKbVersion": 131,
+    "Notes": "用户 2026-10-30 按立绘拼图分组命名（R57）",
+    "Excluded": null
   }
 ]
