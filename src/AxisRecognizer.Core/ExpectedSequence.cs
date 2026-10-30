@@ -63,7 +63,9 @@ public sealed record StepCheck(ValueRange? Round, ValueRange? ActionValue)
 
 /// <summary>
 /// One line of an expected sequence. <see cref="Skill"/> and <see cref="Target"/> are notes taken from the strategy
-/// video (editable by the user); they are not part of the pass/fail check.
+/// video (editable by the user); they are not part of the pass/fail check. <see cref="DelayMs"/> ("定时=1250") is
+/// for the auto-play code only: release this ultimate that many milliseconds after the previous line's action
+/// starts (R60).
 /// </summary>
 public sealed record SequenceStep(
     int Line,
@@ -75,7 +77,8 @@ public sealed record SequenceStep(
     string? UnitId,
     SkillKind? Skill,
     TargetRef? Target,
-    StepCheck? Check)
+    StepCheck? Check,
+    int? DelayMs = null)
 {
     /// <summary>"3", "3-1", "换波", "转阶段".</summary>
     public string Index => Kind switch
@@ -107,6 +110,11 @@ public sealed record SequenceStep(
             if (Target is not null)
             {
                 sb.Append(' ').Append(Target);
+            }
+
+            if (DelayMs is { } delay)
+            {
+                sb.Append(" 定时=").Append(delay.ToString(CultureInfo.InvariantCulture));
             }
         }
 
@@ -293,8 +301,35 @@ public sealed partial class ExpectedSequence
 
             SkillKind? skill = null;
             TargetRef? target = null;
+            int? delay = null;
+            var delayWritten = false;
             foreach (var token in tokens.Skip(2))
             {
+                if (token.StartsWith("定时", StringComparison.Ordinal))
+                {
+                    if (delayWritten)
+                    {
+                        Error("一行只能写一个定时。");
+                    }
+
+                    delayWritten = true;
+                    var match = DelayRegex().Match(token);
+                    if (!match.Success)
+                    {
+                        Error($"定时应写成 定时=毫秒数（如 定时=1250）：{token}");
+                    }
+                    else if (!int.TryParse(match.Groups[1].Value, NumberStyles.None, CultureInfo.InvariantCulture, out var ms))
+                    {
+                        Error($"定时的毫秒数太大：{match.Groups[1].Value}");
+                    }
+                    else
+                    {
+                        delay = ms;
+                    }
+
+                    continue;
+                }
+
                 if (TryParseSkill(token, out var s))
                 {
                     if (skill is not null)
@@ -315,8 +350,18 @@ public sealed partial class ExpectedSequence
                 }
                 else
                 {
-                    Error($"看不懂“{token}”：单位后面只能写招式（普攻、战技、终结技）和目标（如 敌2、敌(-1)、我1）。");
+                    Error($"看不懂“{token}”：单位后面只能写招式（普攻、战技、终结技）、目标（如 敌2、敌(-1)、我1）和定时（如 定时=1250）。");
                 }
+            }
+
+            // R60: only an ultimate written as an extra action, timed from the previous action of this segment.
+            if (delayWritten && (!isExtra || skill != SkillKind.Ultimate))
+            {
+                Error("定时只能写在额外行动的终结技行（如 3-1 长夜月 终结技 定时=1250）。");
+            }
+            else if (delayWritten && (steps.Count == 0 || steps[^1].IsSegmentChange || steps[^1].Segment != segment))
+            {
+                Error("前面没有本段的行动，无法定时：定时从前一行的行动开始计。");
             }
 
             if (skill == SkillKind.Ultimate && !isExtra)
@@ -329,13 +374,13 @@ public sealed partial class ExpectedSequence
             }
 
             steps.Add(new SequenceStep(lineNo, segment, isExtra ? StepKind.Extra : StepKind.Main, main, extra,
-                unitText, unitId, skill, target, check));
+                unitText, unitId, skill, target, check, delay));
             actionsInSegment++;
         }
 
         if (steps.Count == 0)
         {
-            issues.Add(new SequenceIssue(Math.Max(lineNo, 1), IssueLevel.Error, "序列里没有任何行动。"));
+            issues.Add(new SequenceIssue(Math.Max(lineNo, 1), IssueLevel.Error, "流程里没有任何行动。"));
         }
         else if (actionsInSegment == 0)
         {
@@ -375,9 +420,9 @@ public sealed partial class ExpectedSequence
         return unit.Kind switch
         {
             UnitKind.Monster or UnitKind.MonsterSummon =>
-                UnitLookup.Failed($"{unit.Id}（{unit.Name ?? "未命名"}）是敌方单位，敌方行动不写进序列。"),
+                UnitLookup.Failed($"{unit.Id}（{unit.Name ?? "未命名"}）是敌方单位，敌方行动不写进流程。"),
             UnitKind.Marker or UnitKind.Attachment or UnitKind.Empty =>
-                UnitLookup.Failed($"{unit.Id}（{unit.Name ?? "未命名"}）不是行动单位，不写进序列。"),
+                UnitLookup.Failed($"{unit.Id}（{unit.Name ?? "未命名"}）不是行动单位，不写进流程。"),
             _ => UnitLookup.Found(unit.Id),
         };
     };
@@ -486,7 +531,7 @@ public sealed partial class ExpectedSequence
     }
 
     /// <summary>Full-width punctuation to half-width; "->" to "→" (older target notation).</summary>
-    private static string Normalize(string line)
+    internal static string Normalize(string line)
     {
         var sb = new StringBuilder(line.Length);
         foreach (var c in line.TrimEnd('\r'))
@@ -521,4 +566,7 @@ public sealed partial class ExpectedSequence
 
     [GeneratedRegex(@"^(轮次|行动值)=(\d+)(?:[~-](\d+))?$")]
     private static partial Regex CheckRegex();
+
+    [GeneratedRegex(@"^定时=([0-9]+)$")]
+    private static partial Regex DelayRegex();
 }

@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Globalization;
 using System.IO;
 using System.Text.Json;
 using System.Windows;
@@ -11,10 +12,10 @@ using AxisRecognizer;
 
 namespace GameLauncher;
 
-/// <summary>The 凹分序列 page: write and check the expected sequence of one battle, saved for the auto-play code.</summary>
+/// <summary>The 目标流程 page: write and check the expected sequence of one battle, saved for the auto-play code.</summary>
 public partial class MainWindow
 {
-    private const string NewSequenceItem = "（新序列）";
+    private const string NewSequenceItem = "（新流程）";
 
     private readonly DispatcherTimer _sequenceCheckTimer = new() { Interval = TimeSpan.FromMilliseconds(300) };
     private Func<string, UnitLookup>? _sequenceLookup;
@@ -68,7 +69,7 @@ public partial class MainWindow
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             names = [];
-            SequenceSaveText.Text = "读取已保存的序列失败：" + ex.Message;
+            SequenceSaveText.Text = "读取已保存的流程失败：" + ex.Message;
         }
 
         _sequencePickerBusy = true;
@@ -96,7 +97,7 @@ public partial class MainWindow
             return;
         }
 
-        if (!ConfirmDiscardSequence(name is null ? "新建序列" : $"打开“{name}”"))
+        if (!ConfirmDiscardSequence(name is null ? "新建流程" : $"打开“{name}”"))
         {
             // Put the picker back on the sequence still being edited.
             _sequencePickerBusy = true;
@@ -129,7 +130,7 @@ public partial class MainWindow
         _sequenceSavedText = text;
         SequenceNameBox.Text = name ?? string.Empty;
         SequenceEditor.Text = text;
-        SequenceSaveText.Text = name is null ? "新序列，还没有保存。" : $"已打开“{name}”。";
+        SequenceSaveText.Text = name is null ? "新流程，还没有保存。" : $"已打开“{name}”。";
         UpdateSequenceDirty();
         CheckSequence();
     }
@@ -138,9 +139,9 @@ public partial class MainWindow
     private void OpenSequenceDraft(string text, string suggestedName)
     {
         SequenceTab.IsSelected = true;
-        if (!ConfirmDiscardSequence("填入新生成的序列"))
+        if (!ConfirmDiscardSequence("填入新生成的流程"))
         {
-            SequenceSaveText.Text = "生成的序列没有填入（当前序列有未保存的修改）。草稿已保存在识别结果文件夹的 sequence_draft.txt。";
+            SequenceSaveText.Text = "生成的流程没有填入（当前流程有未保存的修改）。草稿已保存在识别结果文件夹的 sequence_draft.txt。";
             return;
         }
 
@@ -151,7 +152,7 @@ public partial class MainWindow
         _sequencePickerBusy = false;
         SequenceNameBox.Text = SequenceFiles.NameError(suggestedName) is null ? suggestedName : string.Empty;
         SequenceEditor.Text = text;
-        SequenceSaveText.Text = "已填入从视频生成的序列，还没保存。核对后点“保存”。";
+        SequenceSaveText.Text = "已填入从视频生成的流程，还没保存。核对后点“保存”。";
         UpdateSequenceDirty();
         CheckSequence();
     }
@@ -164,8 +165,8 @@ public partial class MainWindow
             return true;
         }
 
-        var answer = MessageBox.Show(this, $"凹分序列有还没保存的修改。{action}之前要先保存吗？\n\n是：保存后继续\n否：丢掉修改后继续\n取消：回去继续编辑",
-            "凹分序列未保存", MessageBoxButton.YesNoCancel, MessageBoxImage.Question);
+        var answer = MessageBox.Show(this, $"目标流程有还没保存的修改。{action}之前要先保存吗？\n\n是：保存后继续\n否：丢掉修改后继续\n取消：回去继续编辑",
+            "目标流程未保存", MessageBoxButton.YesNoCancel, MessageBoxImage.Question);
         return answer switch
         {
             MessageBoxResult.Yes => SaveSequence(),
@@ -202,6 +203,7 @@ public partial class MainWindow
         }
 
         UpdateSequenceDirty();
+        UpdateSequenceTimingBar();
         _sequenceCheckTimer.Stop();
         _sequenceCheckTimer.Start();
     }
@@ -309,6 +311,103 @@ public partial class MainWindow
     {
         var line = SequenceEditor.GetLineIndexFromCharacterIndex(SequenceEditor.CaretIndex);
         SequenceCaretText.Text = line >= 0 ? $"第 {line + 1} 行" : string.Empty;
+        UpdateSequenceTimingBar();
+    }
+
+    // ---------- Timing box (R60) ----------
+
+    /// <summary>The editor line the timing box writes to; -1 while the box is hidden.</summary>
+    private int _sequenceTimingLine = -1;
+    private bool _sequenceTimingSync;
+
+    private void UpdateSequenceTimingBar()
+    {
+        var lines = SequenceEditor.Text.Split('\n').Select(l => l.TrimEnd('\r')).ToList();
+        var index = SequenceEditor.GetLineIndexFromCharacterIndex(SequenceEditor.CaretIndex);
+        if (index < 0 || index >= lines.Count || !SequenceTiming.CanTime(lines[index]))
+        {
+            _sequenceTimingLine = -1;
+            SequenceTimingBar.Visibility = Visibility.Collapsed;
+            return;
+        }
+
+        _sequenceTimingLine = index;
+        SequenceTimingBar.Visibility = Visibility.Visible;
+        SequenceTimingTitle.Text = $"第 {index + 1} 行终结技";
+        if (!SequenceTimingBox.IsKeyboardFocusWithin)
+        {
+            _sequenceTimingSync = true;
+            SequenceTimingBox.Text = SequenceTiming.Delay(lines[index])?.ToString(CultureInfo.InvariantCulture) ?? string.Empty;
+            _sequenceTimingSync = false;
+        }
+
+        ShowSequenceTimingNote(lines, index, valid: true);
+    }
+
+    private void ShowSequenceTimingNote(IReadOnlyList<string> lines, int index, bool valid)
+    {
+        var previous = SequenceTiming.PreviousAction(lines, index);
+        var warn = !valid || previous is null;
+        SequenceTimingText.Foreground = warn ? new SolidColorBrush(StatusColor(StatusKind.Error)) : (Brush)FindResource("MutedBrush");
+        SequenceTimingText.Text = !valid
+            ? "只能填 0 或正整数（毫秒），这一行还没改。"
+            : previous is null
+                ? "前面没有本段的行动，这一行不能定时（定时从前一行的行动开始计）。"
+                : $"从上一行“{previous}”的行动开始计：主轴行动从回合开始算，终结技从它释放的那一刻算。留空就不定时。只给自动操作用，不参与判定。";
+    }
+
+    private void SequenceTimingBox_PreviewTextInput(object sender, TextCompositionEventArgs e)
+    {
+        e.Handled = !e.Text.All(char.IsAsciiDigit);
+    }
+
+    private void SequenceTimingBox_PreviewKeyDown(object sender, KeyEventArgs e)
+    {
+        // The space key does not raise PreviewTextInput.
+        e.Handled = e.Key == Key.Space;
+    }
+
+    private void SequenceTimingBox_TextChanged(object sender, TextChangedEventArgs e)
+    {
+        if (_sequenceTimingSync || _sequenceTimingLine < 0)
+        {
+            return;
+        }
+
+        var lines = SequenceEditor.Text.Split('\n').Select(l => l.TrimEnd('\r')).ToList();
+        var index = _sequenceTimingLine;
+        if (index >= lines.Count || !SequenceTiming.CanTime(lines[index]))
+        {
+            return;
+        }
+
+        var text = SequenceTimingBox.Text.Trim();
+        int? ms = null;
+        if (text.Length > 0)
+        {
+            if (!int.TryParse(text, NumberStyles.None, CultureInfo.InvariantCulture, out var value))
+            {
+                ShowSequenceTimingNote(lines, index, valid: false);
+                return;
+            }
+
+            ms = value;
+        }
+
+        var old = lines[index];
+        var updated = SequenceTiming.WithDelay(old, ms);
+        if (updated == old)
+        {
+            ShowSequenceTimingNote(lines, index, valid: true);
+            return;
+        }
+
+        var start = SequenceEditor.GetCharacterIndexFromLineIndex(index);
+        var caret = SequenceEditor.CaretIndex;
+        caret = caret > start + old.Length ? caret + updated.Length - old.Length : Math.Min(caret, start + updated.Length);
+        SequenceEditor.Select(start, old.Length);
+        SequenceEditor.SelectedText = updated;
+        SequenceEditor.Select(caret, 0);
     }
 
     private void UpdateSequenceDirty()
@@ -345,7 +444,7 @@ public partial class MainWindow
         SequenceIssueList.Items.Clear();
         if (string.IsNullOrWhiteSpace(SequenceEditor.Text))
         {
-            SetSequenceCheck(StatusKind.Idle, "还没有内容", "在上面逐行写预期序列，写法见下方“写法说明”。");
+            SetSequenceCheck(StatusKind.Idle, "还没有内容", "在上面逐行写目标流程，写法见下方“写法说明”。");
             return null;
         }
 
@@ -356,7 +455,7 @@ public partial class MainWindow
         var errors = sequence.Issues.Count(i => i.Level == IssueLevel.Error);
         var warnings = sequence.Issues.Count - errors;
         var counts = $"共 {actions.Count} 个行动（主轴 {actions.Count(a => a.Kind == StepKind.Main)}、额外 {actions.Count(a => a.Kind == StepKind.Extra)}），"
-            + $"换波或转阶段 {markers} 次，检定 {checks} 处。";
+            + $"换波或转阶段 {markers} 次，检定 {checks} 处，定时 {sequence.Steps.Count(s => s.DelayMs is not null)} 处。";
         if (_sequenceLookupNote is not null)
         {
             counts += _sequenceLookupNote;
@@ -365,7 +464,7 @@ public partial class MainWindow
         if (errors > 0)
         {
             SetSequenceCheck(StatusKind.Error, $"有 {errors} 处错误" + (warnings > 0 ? $"、{warnings} 条提醒" : string.Empty),
-                "改好错误之前，这份序列不能用于检定。" + counts);
+                "改好错误之前，这份流程不能用于检定。" + counts);
         }
         else if (warnings > 0)
         {
@@ -437,8 +536,8 @@ public partial class MainWindow
         var errors = sequence?.Issues.Count(i => i.Level == IssueLevel.Error) ?? 0;
         if (sequence is null || errors > 0)
         {
-            var reason = sequence is null ? "序列还是空的" : $"序列还有 {errors} 处错误";
-            if (MessageBox.Show(this, $"{reason}，保存后在改好之前不能用于检定。仍要保存吗？", "保存凹分序列",
+            var reason = sequence is null ? "流程还是空的" : $"流程还有 {errors} 处错误";
+            if (MessageBox.Show(this, $"{reason}，保存后在改好之前不能用于检定。仍要保存吗？", "保存目标流程",
                     MessageBoxButton.OKCancel, MessageBoxImage.Warning) != MessageBoxResult.OK)
             {
                 return false;
@@ -449,7 +548,7 @@ public partial class MainWindow
         try
         {
             if (name != _sequenceLoadedName && SequenceFiles.Exists(root, name)
-                && MessageBox.Show(this, $"已经有一份叫“{name}”的序列。要用现在的内容覆盖它吗？", "覆盖序列",
+                && MessageBox.Show(this, $"已经有一份叫“{name}”的流程。要用现在的内容覆盖它吗？", "覆盖流程",
                     MessageBoxButton.OKCancel, MessageBoxImage.Warning) != MessageBoxResult.OK)
             {
                 return false;
@@ -491,7 +590,7 @@ public partial class MainWindow
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            SequenceSaveText.Text = "无法打开序列文件夹：" + ex.Message;
+            SequenceSaveText.Text = "无法打开流程文件夹：" + ex.Message;
             return;
         }
 

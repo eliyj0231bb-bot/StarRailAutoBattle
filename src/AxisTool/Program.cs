@@ -136,10 +136,10 @@ internal static class Program
               axis video sheet <视频> --out <图.jpg> [--crop x,y,w,h（画面比例）] [--every 秒] [--start 秒] [--end 秒] [--cols 6] [--width 320]
                                     （开发用：把多帧的同一区域拼成一张图，方便对照画面线索）
 
-            凹分序列
+            目标流程
               axis sequence <视频> [--every 秒，默认 1/15] [--start 秒] [--end 秒] [--out 序列.txt] [--team 一号位,二号位,三号位,四号位] [--trace 1]
                                 [--ult-source team-bar|splash（终结技看队伍栏按钮，或只看全屏立绘；默认 team-bar）]
-                                    （从攻略视频识别预期序列，输出凹分序列页的格式；读数和视频时间写在 # 注释里）
+                                    （从攻略视频识别目标流程，输出目标流程页的格式；读数和视频时间写在 # 注释里）
                                     （--team 按队伍栏从左到右给出四个角色，用来认出终结技是谁放的；不给时只标“队伍第几位”）
 
             画面线索（行动轴以外的识别：当前格左侧标记、右下角状态文字、回合开始白闪、战斗开始）
@@ -1216,7 +1216,7 @@ internal static class Program
 
     // ---------------- sequence ----------------
 
-    /// <summary>Strategy video → expected sequence text (the format of the launcher's 凹分序列 page).</summary>
+    /// <summary>Strategy video → expected sequence text (the format of the launcher's 目标流程 page).</summary>
     private static int Sequence(Args args, string dataRoot)
     {
         var video = args.Positional.ElementAtOrDefault(1) ?? throw new UsageException("缺少视频路径。");

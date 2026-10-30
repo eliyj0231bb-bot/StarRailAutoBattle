@@ -8,6 +8,53 @@ public class ExpectedSequenceTests
         sequence.Issues.Where(i => i.Level == IssueLevel.Error).Select(i => i.ToString()).ToList();
 
     [Fact]
+    public void R60_example_timed_ultimates_parse_and_round_trip()
+    {
+        var sequence = ExpectedSequence.Parse("""
+            1 昔涟
+            2 长夜月
+            3 记忆主 战技
+            3-1 长夜月 终结技 定时=1250
+            3-2 风堇 定时＝３００ 我1 终结技  @ 行动值=100
+            """);
+
+        Assert.True(sequence.IsValid, string.Join("\n", sequence.Issues));
+        Assert.Equal([null, null, null, 1250, 300], sequence.Steps.Select(s => s.DelayMs));
+        Assert.Equal("3-2 风堇 终结技 我1 定时=300  @ 行动值=100", sequence.Steps[4].ToText());
+        var again = ExpectedSequence.Parse(ExpectedSequence.Format(sequence.Steps));
+        Assert.Equal(sequence.Steps.Select(s => s.DelayMs), again.Steps.Select(s => s.DelayMs));
+    }
+
+    [Fact]
+    public void R60_timing_only_on_an_extra_ultimate_after_an_action_of_the_segment()
+    {
+        var sequence = ExpectedSequence.Parse("""
+            0-1 长夜月 终结技 定时=100
+            1 昔涟 定时=100
+            1-1 风堇 定时=100
+            1-2 风堇 终结技 定时=1.5
+            1-3 风堇 终结技 定时=99999999999
+            1-4 风堇 终结技 定时=1 定时=2
+            == 换波 ==
+            0-1 长夜月 终结技 定时=0
+            1 昔涟
+            1-1 长夜月 终结技 定时=0
+            """);
+
+        Assert.Equal(
+        [
+            "第 1 行错误：前面没有本段的行动，无法定时：定时从前一行的行动开始计。",
+            "第 2 行错误：定时只能写在额外行动的终结技行（如 3-1 长夜月 终结技 定时=1250）。",
+            "第 3 行错误：定时只能写在额外行动的终结技行（如 3-1 长夜月 终结技 定时=1250）。",
+            "第 4 行错误：定时应写成 定时=毫秒数（如 定时=1250）：定时=1.5",
+            "第 5 行错误：定时的毫秒数太大：99999999999",
+            "第 6 行错误：一行只能写一个定时。",
+            "第 8 行错误：前面没有本段的行动，无法定时：定时从前一行的行动开始计。",
+        ], Errors(sequence));
+        Assert.Equal(0, sequence.Steps.Last().DelayMs);
+    }
+
+    [Fact]
     public void Full_example_parses_steps_segments_skills_targets_and_checks()
     {
         var sequence = ExpectedSequence.Parse("""
@@ -97,7 +144,7 @@ public class ExpectedSequenceTests
     [InlineData("1 A\n== 换波 ==\n2 B", "第 3 行错误：换段后序号从 1 重新开始，这里应为 1。")]
     [InlineData("A 1", "第 1 行错误：行首应为序号（如 3 或 3-1）：A")]
     [InlineData("1", "第 1 行错误：序号后面要写单位（名称或 U 编号）。")]
-    [InlineData("1 A 大招", "第 1 行错误：看不懂“大招”：单位后面只能写招式（普攻、战技、终结技）和目标（如 敌2、敌(-1)、我1）。")]
+    [InlineData("1 A 大招", "第 1 行错误：看不懂“大招”：单位后面只能写招式（普攻、战技、终结技）、目标（如 敌2、敌(-1)、我1）和定时（如 定时=1250）。")]
     [InlineData("1 A 敌0", "第 1 行错误：从左数的目标从 1 开始：敌0")]
     [InlineData("1 A 我(1)", "第 1 行错误：以 boss 为基准的写法只用于敌方：我(1)")]
     [InlineData("1 A 敌x", "第 1 行错误：目标写法不对：敌x（应为 敌2、敌(0)、敌(-1)、我1）")]
@@ -106,7 +153,7 @@ public class ExpectedSequenceTests
     [InlineData("1 A @", "第 1 行错误：@ 后面没有写检定条件。")]
     [InlineData("1 A @ 轮次=1 轮次=2", "第 1 行错误：轮次写了两次。")]
     [InlineData("1 A\n== 换关 ==", "第 2 行错误：特殊行动应写成 == 换波 == 或 == 转阶段 ==。")]
-    [InlineData("# 只有注释", "第 1 行错误：序列里没有任何行动。")]
+    [InlineData("# 只有注释", "第 1 行错误：流程里没有任何行动。")]
     public void Format_errors_name_the_line_and_the_fix(string text, string expected)
     {
         var sequence = ExpectedSequence.Parse(text);
@@ -128,7 +175,7 @@ public class ExpectedSequenceTests
 
     [Theory]
     [InlineData("王虫 0T 第一版", null)]
-    [InlineData("", "请填写序列名称。")]
+    [InlineData("", "请填写流程名称。")]
     [InlineData(" 前空格", "名称前后不能有空格。")]
     [InlineData("a/b", "名称不能包含 \\ / : * ? \" < > | 等字符。")]
     [InlineData("末尾点.", "名称不能以点开头或结尾。")]
@@ -186,8 +233,8 @@ public class ExpectedSequenceTests
         var errors = Errors(sequence);
         Assert.Equal(4, errors.Count);
         Assert.StartsWith("第 3 行错误：“同名”对应多个单位", errors[0]);
-        Assert.Equal($"第 4 行错误：{boss.Id}（首领）是敌方单位，敌方行动不写进序列。", errors[1]);
-        Assert.Equal($"第 5 行错误：{marker.Id}（提醒）不是行动单位，不写进序列。", errors[2]);
+        Assert.Equal($"第 4 行错误：{boss.Id}（首领）是敌方单位，敌方行动不写进流程。", errors[1]);
+        Assert.Equal($"第 5 行错误：{marker.Id}（提醒）不是行动单位，不写进流程。", errors[2]);
         Assert.Equal("第 6 行错误：知识库里没有叫“不存在”的单位，请写名称或 U 编号。", errors[3]);
     }
 }

@@ -26,7 +26,7 @@ public static class SequenceFiles
     {
         if (string.IsNullOrWhiteSpace(name))
         {
-            return "请填写序列名称。";
+            return "请填写流程名称。";
         }
 
         if (name != name.Trim())

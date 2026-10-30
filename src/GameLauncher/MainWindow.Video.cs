@@ -363,7 +363,7 @@ public partial class MainWindow
         var token = _videoCts.Token;
         SetVideoBusy(true);
         MakeSequenceButton.IsEnabled = false;
-        SetVideoStatus(StatusKind.Busy, "正在生成凹分序列…", "按画面事件逐帧整理行动顺序（在本机运行，不调用大模型）。", progress: 0);
+        SetVideoStatus(StatusKind.Busy, "正在生成目标流程…", "按画面事件逐帧整理行动顺序（在本机运行，不调用大模型）。", progress: 0);
         try
         {
             var progress = new Progress<double>(f => VideoProgress.Value = f * 100);
@@ -374,18 +374,18 @@ public partial class MainWindow
             File.WriteAllText(IOPath.Combine(_videoRunDir, "sequence_draft.txt"), text, new UTF8Encoding(false));
             _storage.Log("video", $"生成凹分序列 | 事件={result.Events.Count} | 问题={result.Problems.Count}");
             var actions = result.Events.Count(ev => ev.Kind == BattleEventKind.Action);
-            SetVideoStatus(result.Problems.Count > 0 ? StatusKind.Warning : StatusKind.Success, "凹分序列已生成",
-                $"整理出 {actions} 个行动，已填进“凹分序列”页（还没保存）。请核对单位、招式和行号提示后再保存。",
+            SetVideoStatus(result.Problems.Count > 0 ? StatusKind.Warning : StatusKind.Success, "目标流程已生成",
+                $"整理出 {actions} 个行动，已填进“目标流程”页（还没保存）。请核对单位、招式和行号提示后再保存。",
                 note: result.Problems.Count > 0 ? string.Join("；", result.Problems) : null);
             OpenSequenceDraft(text, $"{source.Label} {DateTime.Now:MMdd-HHmm}");
         }
         catch (OperationCanceledException)
         {
-            SetVideoStatus(StatusKind.Warning, "已取消", "生成凹分序列已取消。");
+            SetVideoStatus(StatusKind.Warning, "已取消", "生成目标流程已取消。");
         }
         catch (Exception ex) when (ex is IOException or InvalidDataException or InvalidOperationException or UnauthorizedAccessException)
         {
-            SetVideoStatus(StatusKind.Error, "生成凹分序列失败", ex.Message);
+            SetVideoStatus(StatusKind.Error, "生成目标流程失败", ex.Message);
         }
         finally
         {

@@ -17,7 +17,7 @@
         <StackPanel Margin="0,0,0,12">
             <TextBlock Text="STAR RAIL AUTO BATTLE" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource AccentBrush}" />
             <TextBlock Text="StarRailAutoBattle" FontSize="24" FontWeight="SemiBold" Margin="0,2,0,4" />
-            <TextBlock Text="“视频”页录制并识别 B 站视频里的行动轴；“凹分序列”页编辑凹分检定用的预期序列；“游戏”页启动或识别游戏。点击各页的“启动”之前，不会打开或启动任何东西。"
+            <TextBlock Text="“视频”页录制并识别 B 站视频里的行动轴；“目标流程”页编辑凹分检定用的目标流程；“游戏”页启动或识别游戏。点击各页的“启动”之前，不会打开或启动任何东西。"
                        Foreground="{StaticResource MutedBrush}" FontSize="13" />
         </StackPanel>
 
@@ -100,7 +100,7 @@
 
                         <Border Style="{StaticResource Card}">
                             <StackPanel>
-                                <TextBlock Style="{StaticResource LabelText}" Text="队伍（生成凹分序列用，可选）" />
+                                <TextBlock Style="{StaticResource LabelText}" Text="队伍（生成目标流程用，可选）" />
                                 <TextBox x:Name="SequenceTeamBox" AutomationProperties.Name="队伍，从左到右" />
                                 <TextBlock Style="{StaticResource HelpText}"
                                            Text="按队伍栏从左到右写四个角色，用逗号或空格隔开，例如：昔涟，长夜月，风堇，记忆主（攻略视频的简介里一般有）。填了以后，队伍栏终结技按钮熄灭时能认出是谁放的终结技；不填时只标“队伍第几位”。" />
@@ -114,9 +114,9 @@
                             <Button x:Name="EditResultButton" Content="编辑结果" Style="{StaticResource SecondaryButton}"
                                     Click="EditResultButton_Click" IsEnabled="False" Margin="0,0,10,0"
                                     ToolTip="用记事本等文本编辑器打开识别结果的可编辑副本（result_edit.txt）。工具生成的原始结果保持只读，不会被改动。" />
-                            <Button x:Name="MakeSequenceButton" Content="生成凹分序列" Style="{StaticResource SecondaryButton}"
+                            <Button x:Name="MakeSequenceButton" Content="生成目标流程" Style="{StaticResource SecondaryButton}"
                                     Click="MakeSequenceButton_Click" IsEnabled="False" Margin="0,0,10,0"
-                                    ToolTip="按画面事件（回合开始、终结技、换波、转阶段、读数）把这段视频整理成凹分序列，填进“凹分序列”页，核对后再保存。比识别结果慢，3 分钟视频约需 5 分钟。" />
+                                    ToolTip="按画面事件（回合开始、终结技、换波、转阶段、读数）把这段视频整理成目标流程，填进“目标流程”页，核对后再保存。比识别结果慢，3 分钟视频约需 5 分钟。" />
                             <Button x:Name="OpenRunFolderButton" Content="打开结果文件夹" Style="{StaticResource SecondaryButton}"
                                     Click="OpenRunFolderButton_Click" Visibility="Collapsed" />
                         </WrapPanel>
@@ -138,12 +138,12 @@
             </TabItem>
 
             <!-- ==================== Expected sequence ==================== -->
-            <TabItem x:Name="SequenceTab" Header="凹分序列" AutomationProperties.Name="凹分序列页">
+            <TabItem x:Name="SequenceTab" Header="目标流程" AutomationProperties.Name="目标流程页">
                 <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0,14,0,0">
                     <StackPanel>
                         <Border Style="{StaticResource Card}">
                             <StackPanel>
-                                <TextBlock Style="{StaticResource LabelText}" Text="序列" />
+                                <TextBlock Style="{StaticResource LabelText}" Text="流程" />
                                 <Grid>
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="Auto" />
@@ -153,20 +153,20 @@
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Text="打开" VerticalAlignment="Center" Margin="0,0,8,0" FontSize="13" />
                                     <ComboBox Grid.Column="1" x:Name="SequencePicker" FontSize="13" Padding="8,6" VerticalContentAlignment="Center"
-                                              SelectionChanged="SequencePicker_SelectionChanged" AutomationProperties.Name="已保存的序列" />
+                                              SelectionChanged="SequencePicker_SelectionChanged" AutomationProperties.Name="已保存的流程" />
                                     <TextBlock Grid.Column="2" Text="名称" VerticalAlignment="Center" Margin="16,0,8,0" FontSize="13" />
-                                    <TextBox Grid.Column="3" x:Name="SequenceNameBox" TextChanged="SequenceNameBox_TextChanged" AutomationProperties.Name="序列名称" />
+                                    <TextBox Grid.Column="3" x:Name="SequenceNameBox" TextChanged="SequenceNameBox_TextChanged" AutomationProperties.Name="流程名称" />
                                 </Grid>
                                 <TextBlock x:Name="SequenceNameError" Style="{StaticResource ErrorText}" Visibility="Collapsed" />
                                 <TextBlock Style="{StaticResource HelpText}"
-                                           Text="一份序列对应一整场战斗（从战斗开始到结算）。选择“（新序列）”从空白开始；改了名称再保存，就另存为新序列。" />
+                                           Text="一份流程对应一整场战斗（从战斗开始到结算）。选择“（新流程）”从空白开始；改了名称再保存，就另存为新流程。" />
                             </StackPanel>
                         </Border>
 
                         <Border Style="{StaticResource Card}">
                             <StackPanel>
                                 <Grid Margin="0,0,0,6">
-                                    <TextBlock Style="{StaticResource LabelText}" Text="预期序列和检定条件" Margin="0" />
+                                    <TextBlock Style="{StaticResource LabelText}" Text="目标流程和检定条件" Margin="0" />
                                     <TextBlock x:Name="SequenceCaretText" HorizontalAlignment="Right" FontSize="12"
                                                Foreground="{StaticResource MutedBrush}" VerticalAlignment="Bottom" />
                                 </Grid>
@@ -175,7 +175,24 @@
                                          FontFamily="Consolas, Microsoft YaHei UI" FontSize="14"
                                          TextChanged="SequenceEditor_TextChanged" SelectionChanged="SequenceEditor_SelectionChanged"
                                          PreviewTextInput="SequenceEditor_PreviewTextInput" PreviewKeyDown="SequenceEditor_PreviewKeyDown"
-                                         AutomationProperties.Name="预期序列文本" />
+                                         AutomationProperties.Name="目标流程文本" />
+                                <!-- R60: shown while the caret is on an extra ultimate line -->
+                                <Border x:Name="SequenceTimingBar" Visibility="Collapsed" Margin="0,8,0,0" Padding="12,8" Background="{StaticResource InfoBackBrush}"
+                                        BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="6">
+                                    <StackPanel>
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock x:Name="SequenceTimingTitle" FontWeight="SemiBold" FontSize="13" VerticalAlignment="Center" />
+                                            <TextBlock Text="定时" FontSize="13" VerticalAlignment="Center" Margin="14,0,6,0" />
+                                            <TextBox x:Name="SequenceTimingBox" Width="110" FontSize="13" Padding="6,3" VerticalContentAlignment="Center"
+                                                     TextChanged="SequenceTimingBox_TextChanged" PreviewTextInput="SequenceTimingBox_PreviewTextInput"
+                                                     PreviewKeyDown="SequenceTimingBox_PreviewKeyDown" InputMethod.IsInputMethodEnabled="False"
+                                                     AutomationProperties.Name="定时（毫秒）"
+                                                     ToolTip="填 0 或正整数；留空就不定时。" />
+                                            <TextBlock Text="毫秒" FontSize="13" VerticalAlignment="Center" Margin="6,0,0,0" />
+                                        </StackPanel>
+                                        <TextBlock x:Name="SequenceTimingText" FontSize="12" Margin="0,4,0,0" TextWrapping="Wrap" Foreground="{StaticResource MutedBrush}" />
+                                    </StackPanel>
+                                </Border>
                                 <Border x:Name="SequenceCheckBorder" Margin="0,10,0,0" Padding="12,10" Background="{StaticResource InfoBackBrush}"
                                         BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="6">
                                     <StackPanel>
@@ -194,7 +211,7 @@
                                 <Expander Header="写法说明" Margin="0,10,0,0" FontSize="12" Foreground="{StaticResource MutedBrush}">
                                     <TextBox IsReadOnly="True" TextWrapping="Wrap" Margin="0,6,0,0" FontSize="12" VerticalContentAlignment="Top"
                                              FontFamily="Consolas, Microsoft YaHei UI" Background="{StaticResource InfoBackBrush}"
-                                             Text="一行一步：序号 单位 [招式] [目标] [@ 条件]，各项之间用空格隔开。方括号里的可以不填：招式不填只记顺序，目标不填时默认打 boss（没有 boss 时用游戏默认目标）。# 后面是注释。&#x0a;&#x0a;1 长夜月&#x0a;2 昔涟 战技 敌2      @ 轮次=1 行动值=120~160&#x0a;2-1 长夜月 终结技&#x0a;2-2 风堇 终结技 我3&#x0a;== 换波 ==&#x0a;1 昔涟 敌(0)&#x0a;== 转阶段 ==  @ 行动值=50~100&#x0a;1 U0003 敌(+1)&#x0a;&#x0a;· 序号：n 是本段第 n 次主轴行动；n-1、n-2… 是挂在主轴行动 n 下的额外行动（终结技），连续的终结技都算同一次主轴行动的额外行动；本段第一次主轴行动前的额外行动写 0-1。&#x0a;· 换段：== 换波 == 或 == 转阶段 ==（混沌回忆上下半也算换波），之后序号从 1 重新开始。&#x0a;· 单位：名称或 U 编号。只写我方单位，敌方行动不写。&#x0a;· 招式（可选）：普攻、战技、终结技。目标（可选，不写箭头）：敌2 从左数；敌(0) 是 boss，敌(-1)、敌(+1) 是它左右一个；我1 是我方从左数。招式和目标只作记录，不参与判定。&#x0a;· 条件（可选）：@ 轮次=1 行动值=120~160，只在写了条件的步骤读取轮次和剩余行动值；其余步骤只比对顺序。&#x0a;· 全角括号、等号、波浪号和全角数字都可以。" />
+                                             Text="一行一步：序号 单位 [招式] [目标] [定时] [@ 条件]，各项之间用空格隔开。方括号里的可以不填：招式不填只记顺序，目标不填时默认打 boss（没有 boss 时用游戏默认目标）。# 后面是注释。&#x0a;&#x0a;1 长夜月&#x0a;2 昔涟 战技 敌2      @ 轮次=1 行动值=120~160&#x0a;2-1 长夜月 终结技 定时=1250&#x0a;2-2 风堇 终结技 我3 定时=300&#x0a;== 换波 ==&#x0a;1 昔涟 敌(0)&#x0a;== 转阶段 ==  @ 行动值=50~100&#x0a;1 U0003 敌(+1)&#x0a;&#x0a;· 序号：n 是本段第 n 次主轴行动；n-1、n-2… 是挂在主轴行动 n 下的额外行动（终结技），连续的终结技都算同一次主轴行动的额外行动；本段第一次主轴行动前的额外行动写 0-1。&#x0a;· 换段：== 换波 == 或 == 转阶段 ==（混沌回忆上下半也算换波），之后序号从 1 重新开始。&#x0a;· 单位：名称或 U 编号。只写我方单位，敌方行动不写。&#x0a;· 招式（可选）：普攻、战技、终结技。目标（可选，不写箭头）：敌2 从左数；敌(0) 是 boss，敌(-1)、敌(+1) 是它左右一个；我1 是我方从左数。招式和目标只作记录，不参与判定。&#x0a;· 定时（可选，只用于额外行动的终结技行）：定时=1250 表示前一行的行动开始后 1250 毫秒释放这个终结技；前一行是主轴行动时从它的回合开始算，是终结技时从它释放的那一刻算。上例中 2-1 在 2 号行动开始 1.25 秒后释放，2-2 在 2-1 释放 0.3 秒后释放。光标停在终结技行时，编辑框下方会出现定时输入框。定时只给自动操作用，不参与判定。&#x0a;· 条件（可选）：@ 轮次=1 行动值=120~160，只在写了条件的步骤读取轮次和剩余行动值；其余步骤只比对顺序。&#x0a;· 全角括号、等号、波浪号和全角数字都可以。" />
                                 </Expander>
                             </StackPanel>
                         </Border>
@@ -204,9 +221,9 @@
                             <Button x:Name="SequenceReloadButton" Content="放弃修改" Style="{StaticResource SecondaryButton}"
                                     Click="SequenceReloadButton_Click" IsEnabled="False" Margin="0,0,10,0"
                                     ToolTip="丢掉还没保存的修改，回到上次保存的内容。" />
-                            <Button x:Name="SequenceFolderButton" Content="打开序列文件夹" Style="{StaticResource SecondaryButton}"
+                            <Button x:Name="SequenceFolderButton" Content="打开流程文件夹" Style="{StaticResource SecondaryButton}"
                                     Click="SequenceFolderButton_Click"
-                                    ToolTip="序列保存为文本文件，供后续自动操作的程序读取。一般不需要打开。" />
+                                    ToolTip="流程保存为文本文件，供后续自动操作的程序读取。一般不需要打开。" />
                         </WrapPanel>
                         <TextBlock x:Name="SequenceSaveText" FontSize="12" Foreground="{StaticResource MutedBrush}" Margin="2,0,0,14" />
                     </StackPanel>

@@ -13,7 +13,7 @@ public sealed record BattleSequenceResult(IReadOnlyList<BattleEvent> Events, IRe
 
 /// <summary>
 /// Runs the frame readers and the event analyzer over a video, and writes the result as an expected-sequence text
-/// for the 凹分序列 editor (readings and video times as # comments, so the user picks which ones become checks).
+/// for the 目标流程 editor (readings and video times as # comments, so the user picks which ones become checks).
 /// </summary>
 public static class BattleSequence
 {
@@ -79,7 +79,7 @@ public static class BattleSequence
     public static string Clock(double seconds) =>
         string.Create(CultureInfo.InvariantCulture, $"{(int)(seconds / 60)}:{seconds % 60:00.0}");
 
-    /// <summary>The name the 凹分序列 editor accepts for a unit: its name when that name is unique, else its id.</summary>
+    /// <summary>The name the 目标流程 editor accepts for a unit: its name when that name is unique, else its id.</summary>
     public static string UnitText(KnowledgeBase kb, string? unitId)
     {
         if (unitId is null)
