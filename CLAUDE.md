@@ -28,6 +28,8 @@ These are wrong assumptions that were already made and corrected. Don't make the
 - Team slot → unit comes only from the user's team. Never learn it or guess it (R30).
 - Status variants are one unit, and '这里' and the action-value bar are not units (R38, R40). 187 green tests once hid both bugs.
 - Never view BV18nVd6VEiB (R6).
+- srctl background keys: the game runs elevated, so srctl must run as admin too (R63). PostMessage alone is queued until the game comes to the front; it only acts in the background with fake activation on (R66). "ok:true" in the ack is not proof; the user must confirm the game reacted while in the background.
+- Console.InputEncoding = Encoding.UTF8 makes the first piped stdin line start with U+FEFF. Use new UTF8Encoding(false).
 - Edits to the main checkout are blocked from worktree sessions. Step work that is uncommitted on main is invisible to new worktrees.
 
 ## Testing

@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "dependencies": {
+    "net10.0-windows7.0": {
+      "gamecontrol.core": {
+        "type": "Project",
+        "dependencies": {
+          "GameLauncher.Core": "[1.0.0, )"
+        }
+      },
+      "gamelauncher.core": {
+        "type": "Project"
+      }
+    }
+  }
+}
