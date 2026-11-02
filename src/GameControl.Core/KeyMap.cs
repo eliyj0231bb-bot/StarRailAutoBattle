@@ -20,6 +20,9 @@ public sealed record KeyMap
     /// <summary>R71: the splash after an ult key; the next ult key or confirm goes down at least this long after it.</summary>
     public int SplashMs { get; init; } = 800;
 
+    /// <summary>R72: basic and skill are pressed twice (select, then use) with this pause between; 0 = once.</summary>
+    public int TwiceMs { get; init; } = 300;
+
     /// <summary>R68, R69: after the confirm that releases an ult, the next key waits this long for the animation.</summary>
     public int UltAnimMs { get; init; } = 3000;
 
@@ -113,6 +116,11 @@ public sealed record KeyMap
         if (SplashMs is < 0 or > 5000)
         {
             throw new InvalidDataException($"键位文件里 splashMs 要在 0–5000：{SplashMs}");
+        }
+
+        if (TwiceMs is < 0 or > 2000)
+        {
+            throw new InvalidDataException($"键位文件里 twiceMs 要在 0–2000：{TwiceMs}");
         }
 
         for (var slot = 1; slot <= 4; slot++)

@@ -12,7 +12,7 @@ public interface IKeyTarget
     string? KeyUp(int vk);
 }
 
-/// <summary>Turns one instruction line into a key press and one JSON ack line (R62, R65, R67–R71).</summary>
+/// <summary>Turns one instruction line into a key press and one JSON ack line (R62, R65, R67–R72).</summary>
 public sealed class Controller(KeyMap keys, IKeyTarget target, Action<int>? hold = null, Func<double>? clockMs = null)
 {
     private static readonly JsonSerializerOptions AckOptions = new() { Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
@@ -99,6 +99,24 @@ public sealed class Controller(KeyMap keys, IKeyTarget target, Action<int>? hold
         if (target.KeyUp(vk) is { } upError)
         {
             return Fail(upError, ack);
+        }
+
+        // R72: basic and skill are pressed a second time, so the first press selects and the second one uses it.
+        if (command.Op is "basic" or "skill" && keys.TwiceMs > 0)
+        {
+            ack["presses"] = 2;
+            _hold(keys.TwiceMs);
+            if (target.KeyDown(vk) is { } secondDownError)
+            {
+                return Fail(secondDownError, ack);
+            }
+
+            _lastDownMs = _clockMs();
+            _hold(keys.HoldMs);
+            if (target.KeyUp(vk) is { } secondUpError)
+            {
+                return Fail(secondUpError, ack);
+            }
         }
 
         ack["ms"] = ms;

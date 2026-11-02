@@ -95,6 +95,11 @@ internal static class Program
                 keys.Validate();
                 storage.Save(keys);
                 break;
+            case "twice" when words.Count == 2 && int.TryParse(words[1], out var twice):
+                keys = keys with { TwiceMs = twice };
+                keys.Validate();
+                storage.Save(keys);
+                break;
             case "splash" when words.Count == 2 && int.TryParse(words[1], out var splash):
                 keys = keys with { SplashMs = splash };
                 keys.Validate();
@@ -119,7 +124,7 @@ internal static class Program
                 storage.Save(keys);
                 break;
             default:
-                Console.Error.WriteLine("用法错误：keys | keys set <操作> <键> | keys hold <毫秒> | keys splash <毫秒> | keys anim [号位] <毫秒> | keys activate on|off | keys reset");
+                Console.Error.WriteLine("用法错误：keys | keys set <操作> <键> | keys hold <毫秒> | keys twice <毫秒> | keys splash <毫秒> | keys anim [号位] <毫秒> | keys activate on|off | keys reset");
                 return 2;
         }
 
@@ -129,6 +134,7 @@ internal static class Program
         }
 
         Console.Out.WriteLine($"{"hold",-8} {keys.HoldMs} 毫秒");
+        Console.Out.WriteLine($"{"twice",-8} {(keys.TwiceMs > 0 ? $"{keys.TwiceMs} 毫秒（普攻、战技按两次，中间隔这么久）" : "0（普攻、战技只按一次）")}");
         Console.Out.WriteLine($"{"splash",-8} {keys.SplashMs} 毫秒（终结技键按下后放立绘，下一个终结技键或确认至少隔这么久）");
         Console.Out.WriteLine($"{"anim",-8} {keys.UltAnimMs} 毫秒（终结技释放后等动画这么久再按下一个键）");
         for (var slot = 1; slot <= 4; slot++)
@@ -170,7 +176,8 @@ internal static class Program
               srctl keys                     查看键位
               srctl keys set <操作> <键>      改键位，例：srctl keys set confirm E
               srctl keys hold <毫秒>          按键按住多久再抬起（默认 30）
-              srctl keys splash <毫秒>        终结技键按下后的立绘时长，下一个终结技键或确认等它放完（默认 800）
+              srctl keys twice <毫秒>         普攻、战技按两次（先选中再放出），中间隔多久；0 = 只按一次（默认 300）
+              srctl keys splash <毫秒>终结技键按下后的立绘时长，下一个终结技键或确认等它放完（默认 800）
               srctl keys anim <毫秒>          终结技释放后等动画多久再按下一个键（默认 3000）
               srctl keys anim <号位> <毫秒>   给某个号位单独设动画时长（比如带附带行动的终结技）
               srctl keys activate on|off   实验：按下前先告诉后台的游戏“已激活”（默认 off）

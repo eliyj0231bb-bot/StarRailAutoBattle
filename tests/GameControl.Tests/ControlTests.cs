@@ -252,7 +252,7 @@ public class ControlTests
     [Fact]
     public void Confirm_does_not_wait_without_a_pending_ult()
     {
-        var (controller, waits, advance) = OnFakeClock(new KeyMap());
+        var (controller, waits, advance) = OnFakeClock(new KeyMap { TwiceMs = 0 });
         controller.HandleJson("""{"op":"skill"}""");
         Assert.DoesNotContain("wait", controller.HandleJson("""{"op":"confirm"}"""));
 
@@ -302,7 +302,7 @@ public class ControlTests
             .Select(controller.HandleJson).ToList();
 
         Assert.All(acks, a => Assert.StartsWith("""{"ok":true""", a));
-        Assert.Equal([30, 770, 30, 770, 30, 4470, 30, 4470, 30], waits);
+        Assert.Equal([30, 770, 30, 770, 30, 4470, 30, 4470, 30, 300, 30], waits);
     }
 
     // R71: the splash holds back the next ult key or confirm, not other keys.
@@ -373,7 +373,67 @@ public class ControlTests
     {
         var (controller, waits, _) = OnFakeClock(new KeyMap());
         Assert.DoesNotContain("wait", controller.HandleJson("""{"op":"skill","after":500}"""));
-        Assert.Equal([30], waits);
+        Assert.Equal([30, 300, 30], waits);
+    }
+
+    // R72: basic and skill are pressed twice, 300 ms apart, so whichever was selected the second press uses the chosen one.
+    [Theory]
+    [InlineData("basic", "Q")]
+    [InlineData("skill", "E")]
+    public void Basic_and_skill_are_pressed_twice(string op, string key)
+    {
+        var target = new FakeTarget();
+        var waits = new List<int>();
+        var ack = new Controller(new KeyMap(), target, waits.Add).HandleJson($$"""{"op":"{{op}}"}""");
+
+        Assert.Equal([$"down {key}", $"up {key}", $"down {key}", $"up {key}"], target.Log);
+        Assert.Equal([30, 300, 30], waits);
+        Assert.StartsWith($$"""{"ok":true,"op":"{{op}}","key":"{{key}}","presses":2,"ms":""", ack);
+    }
+
+    // R72: twice 0 means a single press; ult, confirm and target keys are never doubled.
+    [Fact]
+    public void Only_basic_and_skill_are_doubled()
+    {
+        var once = new FakeTarget();
+        Assert.DoesNotContain("presses", new Controller(new KeyMap { TwiceMs = 0 }, once, _ => { }).HandleJson("""{"op":"skill"}"""));
+        Assert.Equal(["down E", "up E"], once.Log);
+
+        var target = new FakeTarget();
+        var controller = new Controller(new KeyMap { SplashMs = 0 }, target, _ => { });
+        foreach (var line in new[] { """{"op":"ult","slot":1}""", """{"op":"confirm"}""", """{"op":"right"}""", """{"op":"menu"}""" })
+        {
+            Assert.DoesNotContain("presses", controller.HandleJson(line));
+        }
+
+        Assert.Equal(["down 1", "up 1", "down Space", "up Space", "down D", "up D", "down Esc", "up Esc"], target.Log);
+    }
+
+    // R72: "after" counts from the second press, the moment the action is used.
+    [Fact]
+    public void After_counts_from_the_second_press()
+    {
+        var (controller, waits, _) = OnFakeClock(new KeyMap());
+        controller.HandleJson("""{"op":"skill"}""");
+        Assert.Contains("\"wait\":970", controller.HandleJson("""{"op":"basic","after":1000}"""));
+    }
+
+    [Fact]
+    public void Twice_is_saved_and_checked()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), $"srctl-test-{Guid.NewGuid():N}");
+        try
+        {
+            var storage = new KeyMapStorage(dir);
+            Assert.Equal(300, storage.Load().TwiceMs);
+            storage.Save(storage.Load() with { TwiceMs = 0 });
+            Assert.Equal(0, storage.Load().TwiceMs);
+            Assert.Throws<InvalidDataException>(() => (new KeyMap() with { TwiceMs = 3000 }).Validate());
+        }
+        finally
+        {
+            Directory.Delete(dir, true);
+        }
     }
 
     [Theory]
@@ -441,7 +501,9 @@ public class ControlTests
 
         Assert.StartsWith("""{"ok":true,"op":"basic","key":"Q","activate":true,""", ack);
         Assert.NotEqual(window.Handle, GetForegroundWindow());
-        Assert.Equal([(0x001Cu, 1), (0x0006u, 1), (0x0007u, 0), (0x0100u, 0x51), (0x0101u, 0x51)], window.PumpWithActivation());
+        // R72: basic is pressed twice, each press preceded by the activation messages.
+        (uint, int)[] press = [(0x001Cu, 1), (0x0006u, 1), (0x0007u, 0), (0x0100u, 0x51), (0x0101u, 0x51)];
+        Assert.Equal([.. press, .. press], window.PumpWithActivation());
     }
 
     [Fact]
@@ -451,7 +513,7 @@ public class ControlTests
         var ack = new Controller(new KeyMap { HoldMs = 0 }, new BackgroundKeys(() => window.Handle)).HandleJson("""{"op":"basic"}""");
 
         Assert.DoesNotContain("activate", ack);
-        Assert.Equal([(0x0100u, 0x51), (0x0101u, 0x51)], window.PumpWithActivation());
+        Assert.Equal([(0x0100u, 0x51), (0x0101u, 0x51), (0x0100u, 0x51), (0x0101u, 0x51)], window.PumpWithActivation());
     }
 
     [Fact]
