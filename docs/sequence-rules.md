@@ -173,7 +173,7 @@
   例：`srctl keys set confirm E` → 之后 `confirm` 发 E。
 - **R65** 反应要快：`serve` 常驻，游戏窗口找到后缓存（窗口关了再重找）；每个键按下后按住 `hold` 毫秒再抬起（默认 30，可改），回执里的 `ms` 是从读到指令到发出按下的耗时。（用户 2026-11-02 “反应要灵敏”）
   例：连续发 `{"op":"ult","slot":1}`、`{"op":"confirm"}` → 两条回执的 `ms` 都在 1 以内。
-- **R66** 实测（2026-11-02）：只用 PostMessage 发键，游戏在后台不处理（普攻、终结技、Esc 都要切到前台才生效）。为此加一个开关“假激活”，默认关：开着时每次按下前先给游戏窗口发“已激活”消息（WM_ACTIVATEAPP、WM_ACTIVATE、WM_SETFOCUS），游戏仍留在后台，不切前台、不注入（R63 其余不变）。用 `srctl keys activate on|off` 开关，存在键位文件里；回执里带 `"activate":true`。这是在骗游戏。（用户 2026-11-02 选“先试假激活”）实测：开着假激活、`srctl` 以管理员身份运行，游戏在后台时普攻、终结技都立刻生效（用户 2026-11-02）。
+- **R66** 实测（2026-11-02）：只用 PostMessage 发键，游戏在后台不处理（普攻、终结技、Esc 都要切到前台才生效）。为此加一个开关“假激活”，默认关：开着时每次按下前先给游戏窗口发“已激活”消息（WM_ACTIVATEAPP、WM_ACTIVATE、WM_SETFOCUS），游戏仍留在后台，不切前台、不注入（R63 其余不变）。用 `srctl keys activate on|off` 开关，存在键位文件里；回执里带 `"activate":true`。这是在骗游戏。（用户 2026-11-02 选“先试假激活”）实测：开着假激活、`srctl` 以管理员身份运行，游戏在后台时普攻、终结技都立刻生效；假激活后在前台别的窗口按 Q、E、1、空格、Esc，后台游戏没反应，所以按完不发“未激活”（用户 2026-11-02）。
   例：`srctl keys activate on` → `srctl send basic` 时游戏依次收到 WM_ACTIVATEAPP、WM_ACTIVATE、WM_SETFOCUS、Q 按下、Q 抬起。
 
 ## 已作废（不要再实现）
