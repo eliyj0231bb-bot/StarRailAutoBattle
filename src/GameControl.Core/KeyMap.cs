@@ -17,6 +17,36 @@ public sealed record KeyMap
     public string Menu { get; init; } = "Esc";
     public int HoldMs { get; init; } = 30;
 
+    /// <summary>R71: the splash after an ult key; the next ult key or confirm goes down at least this long after it.</summary>
+    public int SplashMs { get; init; } = 800;
+
+    /// <summary>R68, R69: after the confirm that releases an ult, the next key waits this long for the animation.</summary>
+    public int UltAnimMs { get; init; } = 3000;
+
+    /// <summary>R69: per team slot overrides of <see cref="UltAnimMs"/>, e.g. for an ult with a follow-up action.</summary>
+    public int? Ult1AnimMs { get; init; }
+    public int? Ult2AnimMs { get; init; }
+    public int? Ult3AnimMs { get; init; }
+    public int? Ult4AnimMs { get; init; }
+
+    public int AnimFor(int slot) => slot switch
+    {
+        1 => Ult1AnimMs,
+        2 => Ult2AnimMs,
+        3 => Ult3AnimMs,
+        4 => Ult4AnimMs,
+        _ => null,
+    } ?? UltAnimMs;
+
+    public KeyMap WithSlotAnim(int slot, int? ms) => slot switch
+    {
+        1 => this with { Ult1AnimMs = ms },
+        2 => this with { Ult2AnimMs = ms },
+        3 => this with { Ult3AnimMs = ms },
+        4 => this with { Ult4AnimMs = ms },
+        _ => throw new ArgumentException($"号位要是 1–4：{slot}"),
+    };
+
     /// <summary>R66 experiment: tell the background game it is active before each key-down. Off by default.</summary>
     public bool FakeActivate { get; init; }
 
@@ -78,6 +108,24 @@ public sealed record KeyMap
         if (HoldMs is < 0 or > 1000)
         {
             throw new InvalidDataException($"键位文件里 holdMs 要在 0–1000：{HoldMs}");
+        }
+
+        if (SplashMs is < 0 or > 5000)
+        {
+            throw new InvalidDataException($"键位文件里 splashMs 要在 0–5000：{SplashMs}");
+        }
+
+        for (var slot = 1; slot <= 4; slot++)
+        {
+            if (AnimFor(slot) is < 0 or > 20000)
+            {
+                throw new InvalidDataException($"键位文件里 {slot} 号位的动画时长要在 0–20000：{AnimFor(slot)}");
+            }
+        }
+
+        if (UltAnimMs is < 0 or > 20000)
+        {
+            throw new InvalidDataException($"键位文件里 ultAnimMs 要在 0–20000：{UltAnimMs}");
         }
     }
 }

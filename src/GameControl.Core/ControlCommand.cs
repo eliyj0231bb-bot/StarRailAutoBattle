@@ -3,8 +3,8 @@ using System.Text.Json.Nodes;
 
 namespace GameControl;
 
-/// <summary>One instruction of R62: an op, and the team slot for ult.</summary>
-public sealed record ControlCommand(string Op, int? Slot = null)
+/// <summary>One instruction of R62: an op, the team slot for ult, and the caller's own timing (R68).</summary>
+public sealed record ControlCommand(string Op, int? Slot = null, int? After = null)
 {
     public static readonly string[] Ops = ["basic", "skill", "ult", "confirm", "left", "right", "menu"];
 
@@ -42,7 +42,24 @@ public sealed record ControlCommand(string Op, int? Slot = null)
             slot = n;
         }
 
-        return TryCreate(op, slot, out command, out error);
+        if (!TryCreate(op, slot, out command, out error))
+        {
+            return false;
+        }
+
+        if (obj["after"] is { } afterNode)
+        {
+            if (afterNode is not JsonValue av || !av.TryGetValue<int>(out var after) || after < 0)
+            {
+                command = null;
+                error = "after 要是 0 或正整数（毫秒）";
+                return false;
+            }
+
+            command = command! with { After = after };
+        }
+
+        return true;
     }
 
     /// <summary>`srctl send ult 2` style: the op word and an optional slot word.</summary>

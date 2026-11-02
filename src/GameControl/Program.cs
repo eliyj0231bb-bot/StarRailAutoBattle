@@ -95,6 +95,21 @@ internal static class Program
                 keys.Validate();
                 storage.Save(keys);
                 break;
+            case "splash" when words.Count == 2 && int.TryParse(words[1], out var splash):
+                keys = keys with { SplashMs = splash };
+                keys.Validate();
+                storage.Save(keys);
+                break;
+            case "anim" when words.Count == 2 && int.TryParse(words[1], out var anim):
+                keys = keys with { UltAnimMs = anim };
+                keys.Validate();
+                storage.Save(keys);
+                break;
+            case "anim" when words.Count == 3 && int.TryParse(words[1], out var animSlot) && int.TryParse(words[2], out var slotAnim):
+                keys = keys.WithSlotAnim(animSlot, slotAnim);
+                keys.Validate();
+                storage.Save(keys);
+                break;
             case "activate" when words.Count == 2 && words[1] is "on" or "off":
                 keys = keys with { FakeActivate = words[1] == "on" };
                 storage.Save(keys);
@@ -104,7 +119,7 @@ internal static class Program
                 storage.Save(keys);
                 break;
             default:
-                Console.Error.WriteLine("用法错误：keys | keys set <操作> <键> | keys hold <毫秒> | keys activate on|off | keys reset");
+                Console.Error.WriteLine("用法错误：keys | keys set <操作> <键> | keys hold <毫秒> | keys splash <毫秒> | keys anim [号位] <毫秒> | keys activate on|off | keys reset");
                 return 2;
         }
 
@@ -114,6 +129,12 @@ internal static class Program
         }
 
         Console.Out.WriteLine($"{"hold",-8} {keys.HoldMs} 毫秒");
+        Console.Out.WriteLine($"{"splash",-8} {keys.SplashMs} 毫秒（终结技键按下后放立绘，下一个终结技键或确认至少隔这么久）");
+        Console.Out.WriteLine($"{"anim",-8} {keys.UltAnimMs} 毫秒（终结技释放后等动画这么久再按下一个键）");
+        for (var slot = 1; slot <= 4; slot++)
+        {
+            Console.Out.WriteLine($"{$"anim {slot}",-8} {keys.AnimFor(slot)} 毫秒{(keys.AnimFor(slot) == keys.UltAnimMs ? "" : "（单独设置）")}");
+        }
         Console.Out.WriteLine($"{"activate",-8} {(keys.FakeActivate ? "on（假激活，实验）" : "off")}");
         Console.Out.WriteLine($"文件：{storage.FilePath}");
         return 0;
@@ -149,11 +170,15 @@ internal static class Program
               srctl keys                     查看键位
               srctl keys set <操作> <键>      改键位，例：srctl keys set confirm E
               srctl keys hold <毫秒>          按键按住多久再抬起（默认 30）
-              srctl keys activate on|off     实验：按下前先告诉后台的游戏“已激活”（默认 off）
+              srctl keys splash <毫秒>        终结技键按下后的立绘时长，下一个终结技键或确认等它放完（默认 800）
+              srctl keys anim <毫秒>          终结技释放后等动画多久再按下一个键（默认 3000）
+              srctl keys anim <号位> <毫秒>   给某个号位单独设动画时长（比如带附带行动的终结技）
+              srctl keys activate on|off   实验：按下前先告诉后台的游戏“已激活”（默认 off）
               srctl keys reset               恢复默认键位
 
             操作：basic 普攻、skill 战技、ult 终结技（号位 1–4）、confirm 确认、left/right 换目标、menu 菜单
             指令例：{"op":"skill"}  {"op":"ult","slot":2}  {"op":"confirm"}
+            自己定时：{"op":"ult","slot":2,"after":1200}  从上一个按键按下起等 1200 毫秒再按，不套 splash 和 anim
             回执例：{"ok":true,"op":"ult","slot":2,"key":"2","ms":0.1}
 
             选项：--process <进程名>  默认 StarRail
