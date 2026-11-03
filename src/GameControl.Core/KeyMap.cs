@@ -71,6 +71,13 @@ public sealed record KeyMap
         _ => throw new ArgumentException($"没有这个操作：{name}。可用：{string.Join("、", Names)}"),
     };
 
+    /// <summary>R75: keys given to more than one operation, with those operations (allowed, but worth a reminder).</summary>
+    public IReadOnlyList<(string Key, string[] Names)> SharedKeys() =>
+        Names.GroupBy(name => KeyNames.TryParse(KeyFor(name), out var vk) ? KeyNames.Format(vk) : KeyFor(name))
+            .Where(g => g.Count() > 1)
+            .Select(g => (g.Key, g.ToArray()))
+            .ToList();
+
     public string KeyFor(ControlCommand command) => KeyFor(command.Op == "ult" ? $"ult{command.Slot}" : command.Op);
 
     public KeyMap With(string name, string key)

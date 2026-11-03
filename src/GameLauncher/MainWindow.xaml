@@ -17,7 +17,7 @@
         <StackPanel Margin="0,0,0,12">
             <TextBlock Text="STAR RAIL AUTO BATTLE" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource AccentBrush}" />
             <TextBlock Text="StarRailAutoBattle" FontSize="24" FontWeight="SemiBold" Margin="0,2,0,4" />
-            <TextBlock Text="“视频”页录制并识别 B 站视频里的行动轴；“目标流程”页编辑凹分检定用的目标流程；“游戏”页启动或识别游戏。点击各页的“启动”之前，不会打开或启动任何东西。"
+            <TextBlock Text="“视频”页录制并识别 B 站视频里的行动轴；“目标流程”页编辑凹分检定用的目标流程；“游戏”页启动或识别游戏；“设置”页调整键位和战斗参数。点击各页的“启动”之前，不会打开或启动任何东西。"
                        Foreground="{StaticResource MutedBrush}" FontSize="13" />
         </StackPanel>
 
@@ -352,6 +352,208 @@
                                 </Expander>
                             </StackPanel>
                         </Border>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- ==================== Settings (R75) ==================== -->
+            <TabItem x:Name="SettingsTab" Header="设置" AutomationProperties.Name="设置页">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0,14,0,0">
+                    <StackPanel>
+                        <Border Style="{StaticResource Card}">
+                            <StackPanel>
+                                <TextBlock Style="{StaticResource LabelText}" Text="键位" />
+                                <Grid x:Name="SettingsKeyGrid">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition /><RowDefinition /><RowDefinition /><RowDefinition /><RowDefinition />
+                                    </Grid.RowDefinitions>
+                                    <TextBlock Grid.Row="0" Text="普攻" Style="{StaticResource SettingsLabel}" />
+                                    <TextBox Grid.Row="0" Grid.Column="1" x:Name="SettingsKeyBasic" Style="{StaticResource SettingsKeyBox}" AutomationProperties.Name="普攻键" />
+                                    <TextBlock Grid.Row="0" Grid.Column="2" Text="战技" Style="{StaticResource SettingsLabel}" Margin="16,0,8,0" />
+                                    <TextBox Grid.Row="0" Grid.Column="3" x:Name="SettingsKeySkill" Style="{StaticResource SettingsKeyBox}" AutomationProperties.Name="战技键" />
+                                    <TextBlock Grid.Row="1" x:Name="SettingsKeyUlt1Label" Text="终结技 1号" Style="{StaticResource SettingsLabel}" />
+                                    <TextBox Grid.Row="1" Grid.Column="1" x:Name="SettingsKeyUlt1" Style="{StaticResource SettingsKeyBox}" AutomationProperties.Name="终结技1号位键" />
+                                    <TextBlock Grid.Row="1" Grid.Column="2" x:Name="SettingsKeyUlt2Label" Text="终结技 2号" Style="{StaticResource SettingsLabel}" Margin="16,0,8,0" />
+                                    <TextBox Grid.Row="1" Grid.Column="3" x:Name="SettingsKeyUlt2" Style="{StaticResource SettingsKeyBox}" AutomationProperties.Name="终结技2号位键" />
+                                    <TextBlock Grid.Row="2" x:Name="SettingsKeyUlt3Label" Text="终结技 3号" Style="{StaticResource SettingsLabel}" />
+                                    <TextBox Grid.Row="2" Grid.Column="1" x:Name="SettingsKeyUlt3" Style="{StaticResource SettingsKeyBox}" AutomationProperties.Name="终结技3号位键" />
+                                    <TextBlock Grid.Row="2" Grid.Column="2" x:Name="SettingsKeyUlt4Label" Text="终结技 4号" Style="{StaticResource SettingsLabel}" Margin="16,0,8,0" />
+                                    <TextBox Grid.Row="2" Grid.Column="3" x:Name="SettingsKeyUlt4" Style="{StaticResource SettingsKeyBox}" AutomationProperties.Name="终结技4号位键" />
+                                    <TextBlock Grid.Row="3" Text="确认释放" Style="{StaticResource SettingsLabel}" />
+                                    <TextBox Grid.Row="3" Grid.Column="1" x:Name="SettingsKeyConfirm" Style="{StaticResource SettingsKeyBox}" AutomationProperties.Name="确认键" />
+                                    <TextBlock Grid.Row="3" Grid.Column="2" Text="菜单" Style="{StaticResource SettingsLabel}" Margin="16,0,8,0" />
+                                    <TextBox Grid.Row="3" Grid.Column="3" x:Name="SettingsKeyMenu" Style="{StaticResource SettingsKeyBox}" AutomationProperties.Name="菜单键" />
+                                    <TextBlock Grid.Row="4" Text="目标左移" Style="{StaticResource SettingsLabel}" />
+                                    <TextBox Grid.Row="4" Grid.Column="1" x:Name="SettingsKeyLeft" Style="{StaticResource SettingsKeyBox}" AutomationProperties.Name="目标左移键" />
+                                    <TextBlock Grid.Row="4" Grid.Column="2" Text="目标右移" Style="{StaticResource SettingsLabel}" Margin="16,0,8,0" />
+                                    <TextBox Grid.Row="4" Grid.Column="3" x:Name="SettingsKeyRight" Style="{StaticResource SettingsKeyBox}" AutomationProperties.Name="目标右移键" />
+                                </Grid>
+                                <TextBlock Style="{StaticResource HelpText}"
+                                           Text="要和游戏里的按键设置一致。可以填字母、数字、F1–F12、Space、Enter、Tab、Esc、Shift、Ctrl、Alt、Left、Right、Up、Down。终结技按队伍栏从左到右的号位（目标流程页的队伍站位）。" />
+                            </StackPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource Card}">
+                            <StackPanel>
+                                <TextBlock Style="{StaticResource LabelText}" Text="发键方式" />
+                                <CheckBox x:Name="SettingsFakeActivate" Content="假激活（游戏在后台时让它以为自己在前台）" FontSize="13" Margin="0,0,0,4"
+                                          Checked="SettingsField_Changed" Unchecked="SettingsField_Changed" AutomationProperties.Name="假激活" />
+                                <TextBlock Style="{StaticResource HelpText}" Margin="0,0,0,8"
+                                           Text="不开时游戏在后台收不到按键（实测）。开着也不会切到前台、不注入游戏进程。" />
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="按住时长" Style="{StaticResource SettingsLabel}" />
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal">
+                                        <TextBox x:Name="SettingsHold" Style="{StaticResource SettingsNumberBox}" AutomationProperties.Name="按住时长（毫秒）" />
+                                        <TextBlock Text="毫秒" Style="{StaticResource SettingsUnit}" />
+                                    </StackPanel>
+                                    <TextBlock Grid.Column="2" Text="普攻、战技按两次" Style="{StaticResource SettingsLabel}" Margin="16,0,8,0" />
+                                    <StackPanel Grid.Column="3" Orientation="Horizontal">
+                                        <TextBox x:Name="SettingsTwice" Style="{StaticResource SettingsNumberBox}" AutomationProperties.Name="按两次的间隔" />
+                                        <TextBlock Text="毫秒间隔" Style="{StaticResource SettingsUnit}" />
+                                    </StackPanel>
+                                </Grid>
+                                <TextBlock Style="{StaticResource HelpText}"
+                                           Text="按住时长：每个键按下后按住多久再抬起（0–1000）。按两次：第一下选中、第二下放出，中间隔多久（0–2000，0 = 只按一次）。" />
+                            </StackPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource Card}">
+                            <StackPanel>
+                                <TextBlock Style="{StaticResource LabelText}" Text="战斗参数" />
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="终结技立绘时长" Style="{StaticResource SettingsLabel}" />
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal">
+                                        <TextBox x:Name="SettingsSplash" Style="{StaticResource SettingsNumberBox}" AutomationProperties.Name="终结技立绘时长（毫秒）" />
+                                        <TextBlock Text="毫秒" Style="{StaticResource SettingsUnit}" />
+                                    </StackPanel>
+                                    <TextBlock Grid.Column="2" Text="终结技动画时长" Style="{StaticResource SettingsLabel}" Margin="16,0,8,0" />
+                                    <StackPanel Grid.Column="3" Orientation="Horizontal">
+                                        <TextBox x:Name="SettingsAnim" Style="{StaticResource SettingsNumberBox}" AutomationProperties.Name="终结技动画时长默认值（毫秒）" />
+                                        <TextBlock Text="毫秒（默认）" Style="{StaticResource SettingsUnit}" />
+                                    </StackPanel>
+                                </Grid>
+                                <TextBlock Style="{StaticResource HelpText}" Margin="0,4,0,8"
+                                           Text="立绘时长：按下终结技键后先放立绘，立绘放完才能按下一个终结技键或确认（0–5000）。动画时长：终结技确认释放后，等技能动画放完再按下一个键（0–20000）。" />
+                                <TextBlock Text="各号位的动画时长（留空 = 用默认）" FontSize="13" Margin="0,4,0,6" />
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition /><RowDefinition />
+                                    </Grid.RowDefinitions>
+                                    <TextBlock x:Name="SettingsAnim1Label" Text="1号" Style="{StaticResource SettingsLabel}" />
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal">
+                                        <TextBox x:Name="SettingsAnim1" Style="{StaticResource SettingsNumberBox}" AutomationProperties.Name="1号位动画时长" />
+                                        <TextBlock Text="毫秒" Style="{StaticResource SettingsUnit}" />
+                                    </StackPanel>
+                                    <TextBlock Grid.Column="2" x:Name="SettingsAnim2Label" Text="2号" Style="{StaticResource SettingsLabel}" Margin="16,0,8,0" />
+                                    <StackPanel Grid.Column="3" Orientation="Horizontal">
+                                        <TextBox x:Name="SettingsAnim2" Style="{StaticResource SettingsNumberBox}" AutomationProperties.Name="2号位动画时长" />
+                                        <TextBlock Text="毫秒" Style="{StaticResource SettingsUnit}" />
+                                    </StackPanel>
+                                    <TextBlock Grid.Row="1" x:Name="SettingsAnim3Label" Text="3号" Style="{StaticResource SettingsLabel}" />
+                                    <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal">
+                                        <TextBox x:Name="SettingsAnim3" Style="{StaticResource SettingsNumberBox}" AutomationProperties.Name="3号位动画时长" />
+                                        <TextBlock Text="毫秒" Style="{StaticResource SettingsUnit}" />
+                                    </StackPanel>
+                                    <TextBlock Grid.Row="1" Grid.Column="2" x:Name="SettingsAnim4Label" Text="4号" Style="{StaticResource SettingsLabel}" Margin="16,0,8,0" />
+                                    <StackPanel Grid.Row="1" Grid.Column="3" Orientation="Horizontal">
+                                        <TextBox x:Name="SettingsAnim4" Style="{StaticResource SettingsNumberBox}" AutomationProperties.Name="4号位动画时长" />
+                                        <TextBlock Text="毫秒" Style="{StaticResource SettingsUnit}" />
+                                    </StackPanel>
+                                </Grid>
+                                <TextBlock Style="{StaticResource HelpText}"
+                                           Text="带忆灵技、附带行动的号位动画更长，要单独填长一点（实测风堇带忆灵技要 8000）。号位后面括号里是目标流程页当前的队伍站位。" />
+                            </StackPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource Card}">
+                            <StackPanel>
+                                <TextBlock Style="{StaticResource LabelText}" Text="自动重开" />
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="连续失败" Style="{StaticResource SettingsLabel}" />
+                                    <TextBox x:Name="SettingsPauseAfter" Style="{StaticResource SettingsNumberBox}" AutomationProperties.Name="连续失败多少次后暂停" />
+                                    <TextBlock Text="次后暂停，并存下最后这一局的录像" Style="{StaticResource SettingsUnit}" />
+                                </StackPanel>
+                                <TextBlock Style="{StaticResource HelpText}" Margin="0,4,0,8"
+                                           Text="检定判失败就自动重开；连续失败到这个次数就暂停，录像留给你调整参数。中间成功一次就重新计数。0 = 一直重开、不暂停（0–999）。" />
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="每局容许" Style="{StaticResource SettingsLabel}" />
+                                    <TextBox x:Name="SettingsAllowedPending" Style="{StaticResource SettingsNumberBox}" AutomationProperties.Name="每局容许待定次数" />
+                                    <TextBlock Text="次待定，超过就重开" Style="{StaticResource SettingsUnit}" />
+                                </StackPanel>
+                                <TextBlock Style="{StaticResource HelpText}" Margin="0,4,0,8"
+                                           Text="待定：画面看不清、拿不准这一步对不对。0 = 第一次待定就重开；大于 0 时，看不清的那一步跳过、继续比对后面的步骤（0–99）。" />
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="同一步待定累计" Style="{StaticResource SettingsLabel}" />
+                                    <TextBox x:Name="SettingsPauseAfterPending" Style="{StaticResource SettingsNumberBox}" AutomationProperties.Name="同一步待定累计多少次后暂停" />
+                                    <TextBlock Text="次后暂停，并存下最后这一局的录像" Style="{StaticResource SettingsUnit}" />
+                                </StackPanel>
+                                <TextBlock Style="{StaticResource HelpText}"
+                                           Text="按流程里的每一步分别计数：同一步每待定一次加 1，跨局累计；分散在不同步骤的待定各数各的，不会凑在一起暂停。和连续失败分开数；成功一局时所有计数都清零。同一步老是看不清，多半是识别跟不上，录像用来改进识别。0 = 不暂停（0–999）。检定进程还在开发中，这里先保存设置。" />
+                            </StackPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource Card}">
+                            <StackPanel>
+                                <TextBlock Style="{StaticResource LabelText}" Text="文件夹" />
+                                <Grid x:Name="SettingsFolderGrid">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition /><RowDefinition /><RowDefinition /><RowDefinition />
+                                    </Grid.RowDefinitions>
+                                    <TextBlock Text="数据" Style="{StaticResource SettingsLabel}" />
+                                    <TextBlock Grid.Column="1" x:Name="SettingsDataPath" Style="{StaticResource SettingsPath}" />
+                                    <Button Grid.Column="2" Content="打开" Tag="data" Style="{StaticResource SecondaryButton}" Click="SettingsOpenFolder_Click" Margin="0,4" />
+                                    <TextBlock Grid.Row="1" Text="视频页录像" Style="{StaticResource SettingsLabel}" />
+                                    <TextBlock Grid.Row="1" Grid.Column="1" x:Name="SettingsVideoRunsPath" Style="{StaticResource SettingsPath}" />
+                                    <Button Grid.Row="1" Grid.Column="2" Content="打开" Tag="video-runs" Style="{StaticResource SecondaryButton}" Click="SettingsOpenFolder_Click" Margin="0,4" />
+                                    <TextBlock Grid.Row="2" Text="命令行录像" Style="{StaticResource SettingsLabel}" />
+                                    <TextBlock Grid.Row="2" Grid.Column="1" x:Name="SettingsRecordingsPath" Style="{StaticResource SettingsPath}" />
+                                    <Button Grid.Row="2" Grid.Column="2" Content="打开" Tag="recordings" Style="{StaticResource SecondaryButton}" Click="SettingsOpenFolder_Click" Margin="0,4" />
+                                    <TextBlock Grid.Row="3" Text="日志和设置" Style="{StaticResource SettingsLabel}" />
+                                    <TextBlock Grid.Row="3" Grid.Column="1" x:Name="SettingsLogPath" Style="{StaticResource SettingsPath}" />
+                                    <Button Grid.Row="3" Grid.Column="2" Content="打开" Tag="logs" Style="{StaticResource SecondaryButton}" Click="SettingsOpenFolder_Click" Margin="0,4" />
+                                </Grid>
+                                <TextBlock Style="{StaticResource HelpText}"
+                                           Text="录像比较大（3 分钟约 1.2 GB），不用的可以在文件夹里自己删除。设置保存在“日志和设置”文件夹里，键位文件 control-keys.json 和 srctl 共用。" />
+                            </StackPanel>
+                        </Border>
+
+                        <WrapPanel Margin="0,4,0,8">
+                            <Button x:Name="SettingsSaveButton" Content="保存设置" Style="{StaticResource PrimaryButton}" Click="SettingsSaveButton_Click" Margin="0,0,10,0" />
+                            <Button Content="放弃修改" Style="{StaticResource SecondaryButton}" Click="SettingsReloadButton_Click" Margin="0,0,10,0"
+                                    ToolTip="重新读取已保存的设置。" />
+                            <Button Content="恢复默认" Style="{StaticResource SecondaryButton}" Click="SettingsDefaultsButton_Click"
+                                    ToolTip="把键位、发键方式、战斗参数和自动重开改回默认值（会先确认）。" />
+                        </WrapPanel>
+                        <TextBlock x:Name="SettingsStatusText" FontSize="12" TextWrapping="Wrap" Foreground="{StaticResource MutedBrush}" Margin="2,0,0,14" />
                     </StackPanel>
                 </ScrollViewer>
             </TabItem>

@@ -56,6 +56,7 @@ public partial class MainWindow : Window
         ModeStart.IsChecked = settings.Mode != LaunchMode.IdentifyRunning;
         // First, so the user can still cancel closing over an unsaved sequence before anything else runs.
         InitSequencePage();
+        InitSettingsPage();
         Closing += (_, e) =>
         {
             if (e.Cancel)
@@ -260,7 +261,8 @@ public partial class MainWindow : Window
         target.Visibility = string.IsNullOrEmpty(message) ? Visibility.Collapsed : Visibility.Visible;
     }
 
-    private void SaveSettings() => _storage.SaveSettings(new UserSettings
+    // Keeps what the settings page saved (R75).
+    private void SaveSettings() => _storage.SaveSettings(_storage.LoadSettings() with
     {
         EntryPath = EntryBox.Text.Trim(),
         GameExePath = GameExeBox.Text.Trim(),

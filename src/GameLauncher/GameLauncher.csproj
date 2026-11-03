@@ -34,6 +34,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\GameLauncher.Core\GameLauncher.Core.csproj" />
+    <ProjectReference Include="..\GameControl.Core\GameControl.Core.csproj" />
     <ProjectReference Include="..\VideoRecorder\VideoRecorder.csproj" />
   </ItemGroup>
 
