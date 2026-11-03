@@ -340,6 +340,7 @@ public partial class MainWindow
 
         // Optional team, slots 1–4 left to right as in the team bar.
         var team = new List<string?>();
+        var teamNames = new List<string?>();
         var lookup = ExpectedSequence.KbLookup(kb);
         foreach (var name in SequenceTeamBox.Text.Split([',', '，', '、', ' ', '　'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
         {
@@ -349,6 +350,9 @@ public partial class MainWindow
                 SetVideoStatus(StatusKind.Error, "请先修正队伍", $"队伍里的“{name}”：{found.Error}");
                 return;
             }
+
+            // R74: the flow page's slot boxes get the names as typed here.
+            teamNames.Add(name);
 
             team.Add(found.UnitId);
         }
@@ -372,12 +376,12 @@ public partial class MainWindow
             var text = BattleSequence.ToSequenceText(kb, result, $"{source.Label}，知识库 v{kb.Version}");
             // The tool's own draft stays in the run folder; the editor gets a copy to correct.
             File.WriteAllText(IOPath.Combine(_videoRunDir, "sequence_draft.txt"), text, new UTF8Encoding(false));
-            _storage.Log("video", $"生成凹分序列 | 事件={result.Events.Count} | 问题={result.Problems.Count}");
+            _storage.Log("video", $"生成目标流程 | 事件={result.Events.Count} | 问题={result.Problems.Count}");
             var actions = result.Events.Count(ev => ev.Kind == BattleEventKind.Action);
             SetVideoStatus(result.Problems.Count > 0 ? StatusKind.Warning : StatusKind.Success, "目标流程已生成",
                 $"整理出 {actions} 个行动，已填进“目标流程”页（还没保存）。请核对单位、招式和行号提示后再保存。",
                 note: result.Problems.Count > 0 ? string.Join("；", result.Problems) : null);
-            OpenSequenceDraft(text, $"{source.Label} {DateTime.Now:MMdd-HHmm}");
+            OpenSequenceDraft(text, $"{source.Label} {DateTime.Now:MMdd-HHmm}", teamNames);
         }
         catch (OperationCanceledException)
         {

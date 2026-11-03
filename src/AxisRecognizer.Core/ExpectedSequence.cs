@@ -135,9 +135,11 @@ public enum IssueLevel
     Warning,
 }
 
+/// <summary>A problem on a line; line 0 is the team slots passed in from outside the text (R74).</summary>
 public sealed record SequenceIssue(int Line, IssueLevel Level, string Message)
 {
-    public override string ToString() => $"第 {Line} 行{(Level == IssueLevel.Error ? "错误" : "提醒")}：{Message}";
+    public override string ToString() =>
+        $"{(Line == 0 ? "队伍站位" : $"第 {Line} 行")}{(Level == IssueLevel.Error ? "错误" : "提醒")}：{Message}";
 }
 
 /// <summary>Result of looking up a unit written in a sequence line: its global id, or why it can't be used.</summary>
@@ -168,6 +170,9 @@ public sealed partial class ExpectedSequence
     public required IReadOnlyList<SequenceStep> Steps { get; init; }
     public required IReadOnlyList<SequenceIssue> Issues { get; init; }
 
+    /// <summary>Team slots 1–4 as written (index 0 = 1号); null where empty (R74).</summary>
+    public IReadOnlyList<string?> Team { get; init; } = new string?[SequenceTeam.Slots];
+
     public bool IsValid => Issues.All(i => i.Level != IssueLevel.Error);
 
     public IEnumerable<SequenceStep> Actions => Steps.Where(s => !s.IsSegmentChange);
@@ -185,9 +190,11 @@ public sealed partial class ExpectedSequence
 
     /// <summary>
     /// Parses and checks the text. It never throws on bad input: every problem is an issue with its line number.
-    /// Without <paramref name="lookupUnit"/>, unit names are kept as written and not checked.
+    /// Without <paramref name="lookupUnit"/>, unit names are kept as written and not checked. The team comes from a
+    /// "队伍 1号…" line at the top of the text, or from <paramref name="team"/> when the slots are edited apart from
+    /// the text (the launcher's boxes); problems with those are issues on line 0 (R74).
     /// </summary>
-    public static ExpectedSequence Parse(string text, Func<string, UnitLookup>? lookupUnit = null)
+    public static ExpectedSequence Parse(string text, Func<string, UnitLookup>? lookupUnit = null, IReadOnlyList<string?>? team = null)
     {
         var steps = new List<SequenceStep>();
         var issues = new List<SequenceIssue>();
@@ -196,6 +203,57 @@ public sealed partial class ExpectedSequence
         var lastExtra = 0;
         var actionsInSegment = 0;
         var lineNo = 0;
+
+        var teamSlots = new string?[SequenceTeam.Slots];
+        var teamIds = new string?[SequenceTeam.Slots];
+        var contentSeen = false;
+        void SetTeam(IReadOnlyList<string?> slots, Action<string> error)
+        {
+            for (var i = 0; i < SequenceTeam.Slots && i < slots.Count; i++)
+            {
+                var name = slots[i]?.Trim();
+                if (string.IsNullOrEmpty(name))
+                {
+                    continue;
+                }
+
+                if (name.Any(char.IsWhiteSpace))
+                {
+                    error($"{i + 1}号位的名称里不能有空格：{name}");
+                    continue;
+                }
+
+                string? id = null;
+                if (lookupUnit is not null)
+                {
+                    var lookup = lookupUnit(name);
+                    if (lookup.Error is not null)
+                    {
+                        error($"{i + 1}号位：{lookup.Error}");
+                    }
+
+                    id = lookup.UnitId;
+                }
+
+                var same = Enumerable.Range(0, i)
+                    .FirstOrDefault(j => teamSlots[j] == name || (id is not null && teamIds[j] == id), -1);
+                if (same >= 0)
+                {
+                    error($"“{name}”同时在 {same + 1} 号位和 {i + 1} 号位。");
+                }
+
+                teamSlots[i] = name;
+                teamIds[i] = id;
+            }
+        }
+
+        bool InTeam(string unitText, string? unitId) =>
+            Enumerable.Range(0, SequenceTeam.Slots).Any(i => teamSlots[i] == unitText || (unitId is not null && teamIds[i] == unitId));
+
+        if (team is not null)
+        {
+            SetTeam(team, message => issues.Add(new SequenceIssue(0, IssueLevel.Error, message)));
+        }
 
         foreach (var rawLine in text.Split('\n'))
         {
@@ -215,6 +273,28 @@ public sealed partial class ExpectedSequence
 
             void Error(string message) => issues.Add(new SequenceIssue(lineNo, IssueLevel.Error, message));
             void Warn(string message) => issues.Add(new SequenceIssue(lineNo, IssueLevel.Warning, message));
+
+            // R74: "队伍 1号昔涟 2号风堇 …" as the first line.
+            if (SequenceTeam.IsTeamLine(line))
+            {
+                if (team is not null)
+                {
+                    Error("队伍站位在上面的 4 个格子里填，这里不用写。");
+                }
+                else if (contentSeen)
+                {
+                    Error("队伍站位要写在流程开头（第一个非注释行），只写一次。");
+                }
+                else if (SequenceTeam.ParseLine(line, Error) is { } slots)
+                {
+                    SetTeam(slots, Error);
+                }
+
+                contentSeen = true;
+                continue;
+            }
+
+            contentSeen = true;
 
             var at = line.IndexOf('@');
             var head = (at >= 0 ? line[..at] : line).Trim();
@@ -373,6 +453,12 @@ public sealed partial class ExpectedSequence
                 Warn("额外行动一般是终结技，这里写成了普攻或战技。");
             }
 
+            // R74: the auto-play code presses the ultimate by team slot.
+            if (isExtra && skill == SkillKind.Ultimate && teamSlots.Any(s => s is not null) && !InTeam(unitText, unitId))
+            {
+                Warn($"{unitText}不在队伍站位里，自动操作不知道按几号位。");
+            }
+
             steps.Add(new SequenceStep(lineNo, segment, isExtra ? StepKind.Extra : StepKind.Main, main, extra,
                 unitText, unitId, skill, target, check, delay));
             actionsInSegment++;
@@ -387,7 +473,7 @@ public sealed partial class ExpectedSequence
             issues.Add(new SequenceIssue(steps[^1].Line, IssueLevel.Warning, "最后一段没有任何行动。"));
         }
 
-        return new ExpectedSequence { Steps = steps, Issues = issues };
+        return new ExpectedSequence { Steps = steps, Issues = issues, Team = teamSlots };
     }
 
     /// <summary>

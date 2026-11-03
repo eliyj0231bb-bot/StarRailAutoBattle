@@ -35,7 +35,31 @@ public partial class MainWindow
 
     private static string SequenceDataRoot => AxisData.Resolve(AppContext.BaseDirectory);
 
-    private bool SequenceDirty => SequenceEditor.Text != _sequenceSavedText;
+    private bool SequenceDirty => SequenceFileText != _sequenceSavedText;
+
+    /// <summary>What gets saved: the team line from the slot boxes on top of the editor text (R74).</summary>
+    private string SequenceFileText => SequenceTeam.Join(SequenceTeamSlots(), SequenceEditor.Text);
+
+    private TextBox[] SequenceTeamBoxes => [SequenceTeamSlot1, SequenceTeamSlot2, SequenceTeamSlot3, SequenceTeamSlot4];
+
+    private string?[] SequenceTeamSlots() =>
+        SequenceTeamBoxes.Select(b => string.IsNullOrWhiteSpace(b.Text) ? null : b.Text.Trim()).ToArray();
+
+    private void SetSequenceTeam(IReadOnlyList<string?> slots)
+    {
+        var boxes = SequenceTeamBoxes;
+        for (var i = 0; i < boxes.Length; i++)
+        {
+            boxes[i].Text = i < slots.Count ? slots[i] ?? string.Empty : string.Empty;
+        }
+    }
+
+    private void SequenceTeamSlot_TextChanged(object sender, TextChangedEventArgs e)
+    {
+        UpdateSequenceDirty();
+        _sequenceCheckTimer.Stop();
+        _sequenceCheckTimer.Start();
+    }
 
     private void InitSequencePage()
     {
@@ -127,16 +151,21 @@ public partial class MainWindow
         }
 
         _sequenceLoadedName = name;
-        _sequenceSavedText = text;
+        var (team, body) = SequenceTeam.Split(text);
+        _sequenceSavedText = SequenceTeam.Join(team, body);
         SequenceNameBox.Text = name ?? string.Empty;
-        SequenceEditor.Text = text;
+        SetSequenceTeam(team);
+        SequenceEditor.Text = body;
         SequenceSaveText.Text = name is null ? "新流程，还没有保存。" : $"已打开“{name}”。";
         UpdateSequenceDirty();
         CheckSequence();
     }
 
-    /// <summary>Puts a sequence generated from a video into the editor as a new, unsaved sequence.</summary>
-    private void OpenSequenceDraft(string text, string suggestedName)
+    /// <summary>
+    /// Puts a sequence generated from a video into the editor as a new, unsaved sequence, with the team the video
+    /// page used in the slot boxes (R74).
+    /// </summary>
+    private void OpenSequenceDraft(string text, string suggestedName, IReadOnlyList<string?> team)
     {
         SequenceTab.IsSelected = true;
         if (!ConfirmDiscardSequence("填入新生成的流程"))
@@ -151,6 +180,7 @@ public partial class MainWindow
         SequencePicker.SelectedItem = NewSequenceItem;
         _sequencePickerBusy = false;
         SequenceNameBox.Text = SequenceFiles.NameError(suggestedName) is null ? suggestedName : string.Empty;
+        SetSequenceTeam(team);
         SequenceEditor.Text = text;
         SequenceSaveText.Text = "已填入从视频生成的流程，还没保存。核对后点“保存”。";
         UpdateSequenceDirty();
@@ -448,7 +478,7 @@ public partial class MainWindow
             return null;
         }
 
-        var sequence = ExpectedSequence.Parse(SequenceEditor.Text, SequenceLookup());
+        var sequence = ExpectedSequence.Parse(SequenceEditor.Text, SequenceLookup(), SequenceTeamSlots());
         var actions = sequence.Actions.ToList();
         var markers = sequence.Steps.Count - actions.Count;
         var checks = sequence.Steps.Count(s => s.Check is not null);
@@ -506,7 +536,17 @@ public partial class MainWindow
         }
 
         var index = line - 1;
-        if (index >= 0 && index < SequenceEditor.LineCount)
+        if (line == 0)
+        {
+            // R74: a problem with the team slot boxes.
+            var boxes = SequenceTeamBoxes;
+            var message = SequenceIssueList.SelectedItem is ListBoxItem { Content: TextBlock { Text: var text } } ? text : string.Empty;
+            var match = System.Text.RegularExpressions.Regex.Match(message, "([1-4]) ?号位");
+            var slot = match.Success ? match.Groups[1].Value[0] - '1' : 0;
+            boxes[slot].Focus();
+            boxes[slot].SelectAll();
+        }
+        else if (index >= 0 && index < SequenceEditor.LineCount)
         {
             var start = SequenceEditor.GetCharacterIndexFromLineIndex(index);
             SequenceEditor.Focus();
@@ -554,7 +594,7 @@ public partial class MainWindow
                 return false;
             }
 
-            SequenceFiles.Write(root, name, SequenceEditor.Text);
+            SequenceFiles.Write(root, name, SequenceFileText);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
@@ -563,7 +603,7 @@ public partial class MainWindow
         }
 
         _sequenceLoadedName = name;
-        _sequenceSavedText = SequenceEditor.Text;
+        _sequenceSavedText = SequenceFileText;
         RefreshSequencePicker(name);
         UpdateSequenceDirty();
         SequenceSaveText.Text = $"已保存“{name}”（{DateTime.Now:HH:mm:ss}）" + (errors > 0 || sequence is null ? "，但还不能用于检定。" : "。");
@@ -576,7 +616,9 @@ public partial class MainWindow
         if (MessageBox.Show(this, "丢掉还没保存的修改，回到上次保存的内容吗？", "放弃修改",
                 MessageBoxButton.OKCancel, MessageBoxImage.Question) == MessageBoxResult.OK)
         {
-            SequenceEditor.Text = _sequenceSavedText;
+            var (team, body) = SequenceTeam.Split(_sequenceSavedText);
+            SetSequenceTeam(team);
+            SequenceEditor.Text = body;
             SequenceNameBox.Text = _sequenceLoadedName ?? string.Empty;
         }
     }

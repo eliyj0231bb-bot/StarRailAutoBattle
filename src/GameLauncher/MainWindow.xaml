@@ -160,6 +160,30 @@
                                 <TextBlock x:Name="SequenceNameError" Style="{StaticResource ErrorText}" Visibility="Collapsed" />
                                 <TextBlock Style="{StaticResource HelpText}"
                                            Text="一份流程对应一整场战斗（从战斗开始到结算）。选择“（新流程）”从空白开始；改了名称再保存，就另存为新流程。" />
+                                <!-- R74: team slots, saved as the first line of the flow file -->
+                                <TextBlock Text="队伍站位" FontSize="13" FontWeight="SemiBold" Margin="0,14,0,6" />
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="1号" VerticalAlignment="Center" Margin="0,0,6,0" FontSize="13" />
+                                    <TextBox Grid.Column="1" x:Name="SequenceTeamSlot1" TextChanged="SequenceTeamSlot_TextChanged" AutomationProperties.Name="1号位" />
+                                    <TextBlock Grid.Column="2" Text="2号" VerticalAlignment="Center" Margin="12,0,6,0" FontSize="13" />
+                                    <TextBox Grid.Column="3" x:Name="SequenceTeamSlot2" TextChanged="SequenceTeamSlot_TextChanged" AutomationProperties.Name="2号位" />
+                                    <TextBlock Grid.Column="4" Text="3号" VerticalAlignment="Center" Margin="12,0,6,0" FontSize="13" />
+                                    <TextBox Grid.Column="5" x:Name="SequenceTeamSlot3" TextChanged="SequenceTeamSlot_TextChanged" AutomationProperties.Name="3号位" />
+                                    <TextBlock Grid.Column="6" Text="4号" VerticalAlignment="Center" Margin="12,0,6,0" FontSize="13" />
+                                    <TextBox Grid.Column="7" x:Name="SequenceTeamSlot4" TextChanged="SequenceTeamSlot_TextChanged" AutomationProperties.Name="4号位" />
+                                </Grid>
+                                <TextBlock Style="{StaticResource HelpText}"
+                                           Text="队伍栏从左到右的四个角色，填名称或 U 编号，可以只填几个；随流程一起保存。自动操作按这里的号位放终结技，终结技行的单位不在这里时会有提醒。" />
                             </StackPanel>
                         </Border>
 
